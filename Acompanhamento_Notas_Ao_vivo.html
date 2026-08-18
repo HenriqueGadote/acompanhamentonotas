@@ -548,7 +548,8 @@ async function load(){
 // ─── Render ──────────────────────────────────────────────────────────────────
 function renderKpis(D){
   const total=D.length,totalVal=sum(D,d=>d.valor);
-  const ok=D.filter(d=>d.status==="OK"),pend=D.filter(d=>PENDING.has(d.status)),
+  const isOutAndamento=s=>{const n=norm(s);return n==="cancelada"||n==="devolucao"||n==="armazenagem";};
+  const ok=D.filter(d=>d.status==="OK"),pend=D.filter(d=>PENDING.has(d.status)&&!isOutAndamento(d.status)),
     canc=D.filter(d=>d.status==="CANCELADA"),form=D.filter(d=>d.status==="PENDENTE DE PEDIDO");
   const pctOk=total?Math.round(ok.length/total*100):0;
   document.getElementById("kpis").innerHTML=`
