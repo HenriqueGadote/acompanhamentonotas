@@ -1,0 +1,555 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel de Saldos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0d1526; --ink2:#1e293b; --paper:#f4f5f7; --panel:#ffffff;
+    --line:#e4e8ee; --muted:#67748a; --soft:#8a96a8;
+    --pos:#157a45; --neg:#cf3b30; --posbg:#e8f4ec; --negbg:#fbe9e7;
+    --log:#2f6df0; --cargo:#0d9488; --alleanza:#8b46d6;
+    --shadow:0 1px 2px rgba(13,21,38,.05),0 8px 24px -12px rgba(13,21,38,.18);
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px 64px}
+
+  header{background:linear-gradient(160deg,#0d1526,#172234);color:#fff;border-radius:0 0 20px 20px;padding:26px 0 30px;margin-bottom:-26px}
+  .hd{max-width:1180px;margin:0 auto;padding:0 22px;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px}
+  .brand{display:flex;flex-direction:column;gap:5px}
+  .eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#7e8ba6;font-weight:600}
+  h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:26px;margin:0;letter-spacing:-.01em}
+  .hd-right{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+  .stamp{font-size:12px;color:#9aa6bd}.stamp b{color:#e7ecf5;font-weight:600}
+  .btn{display:inline-flex;align-items:center;gap:8px;cursor:pointer;border:none;background:#fff;color:var(--ink);font-family:inherit;font-weight:600;font-size:13px;padding:10px 16px;border-radius:10px;transition:.15s;box-shadow:0 4px 14px -6px rgba(0,0,0,.4)}
+  details.sync{margin-top:4px;text-align:right}
+  details.sync>summary{list-style:none;cursor:pointer;font-size:11px;font-weight:600;color:#9aa7c2}
+  details.sync>summary::-webkit-details-marker{display:none}
+  .sync-box{background:#fff;color:var(--ink);border-radius:12px;padding:14px;margin-top:8px;box-shadow:var(--shadow);text-align:left;min-width:320px}
+  .sync-box input{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:12px;margin-bottom:8px;color:var(--ink)}
+  .sync-box .row{display:flex;gap:8px}
+  .sync-box .row input{flex:1}
+  .sync-box .hint{font-size:11px;color:var(--soft);line-height:1.5;margin-top:6px}
+  .pill-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;margin-top:4px}
+  .pill-status.ok{background:var(--posbg);color:var(--pos)}
+  .pill-status.err{background:var(--negbg);color:var(--neg)}
+  .pill-status.wait{background:#eef1f6;color:var(--muted)}
+  .btn:hover{transform:translateY(-1px)} .btn svg{width:15px;height:15px}
+
+  .grid{display:grid;gap:16px;margin-top:42px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+  .ptitle{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--soft);font-weight:600}
+
+  /* KPI cards (one per unit, never summed) */
+  .kpis{grid-template-columns:repeat(4,1fr)}
+  .kpi.total{cursor:default;background:linear-gradient(160deg,#0d1526,#1e2a42);border-color:#0d1526}
+  .kpi.total .val{color:#fff !important}
+  .kpi.total .tag,.kpi.total span:not(.dot){color:#cfd6e6}
+  .kpi.total .dot{background:#fff !important}
+  .kpi{padding:18px 18px 14px;cursor:pointer;border:1px solid var(--line);transition:.15s;position:relative}
+  .kpi:hover{transform:translateY(-2px)}
+  .kpi.sel{box-shadow:0 0 0 2px var(--ac),var(--shadow)}
+  .kpi .tag{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:13px}
+  .kpi .tag .dot{width:10px;height:10px;border-radius:3px}
+  .kpi .val{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:25px;margin:9px 0 2px;letter-spacing:-.01em}
+  .kpi .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .kpi .d{font-size:12.5px;font-weight:600}.kpi .d.up{color:var(--pos)}.kpi .d.down{color:var(--neg)}
+  .kpi .sel-tag{position:absolute;top:14px;right:16px;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--ac);opacity:0}
+  .kpi.sel .sel-tag{opacity:1}
+  .spark{margin-top:8px}
+
+  /* limits */
+  .limits{padding:18px 22px}
+  .lim-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+  .daypick{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+  .daypick select{font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:6px 9px;background:#fff;color:var(--ink);font-weight:600}
+  .limgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:14px}
+  .limcard{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:9px}
+  .lc-top{display:flex;align-items:center;justify-content:space-between}
+  .lc-top .ln{font-size:11px;letter-spacing:.07em;text-transform:uppercase;font-weight:700;color:var(--ink2)}
+  .lc-top .lpct{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+  .lbar{height:9px;border-radius:6px;background:#eef1f5;overflow:hidden}
+  .lfill{display:block;height:100%;border-radius:6px;transition:width .3s}
+  .lrow{display:flex;align-items:baseline;justify-content:space-between;font-size:12px;gap:8px}
+  .lrow span{color:var(--muted)}.lrow b{font-variant-numeric:tabular-nums;font-weight:600}
+  .lrow .neg{color:var(--neg)}.lrow .pos{color:var(--pos)}
+  .lrow.lim-line{padding-top:6px;border-top:1px solid #f0f2f5;margin-top:1px}
+  .lrow.lim-line span,.lrow.lim-line b{color:var(--soft);font-weight:500}
+  .lobs{font-size:10.5px;color:var(--soft);line-height:1.3}
+  .limtot{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px;padding-top:14px;border-top:1px dashed var(--line)}
+  .limtot .tl{display:flex;flex-direction:column;gap:2px}
+  .limtot .tl span{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:600}
+  .limtot .tl b{font-family:'Space Grotesk',sans-serif;font-size:21px;font-variant-numeric:tabular-nums}
+
+  /* unit detail */
+  .tabs{display:flex;gap:8px;margin-bottom:4px}
+  .tab{font-weight:700;font-size:13.5px;color:var(--muted);background:#fff;border:1px solid var(--line);padding:9px 18px;border-radius:10px;cursor:pointer;transition:.12s;display:inline-flex;align-items:center;gap:8px}
+  .tab .dot{width:9px;height:9px;border-radius:3px}
+  .tab.on{color:#fff;border-color:transparent}
+
+  .trend{padding:20px 22px 16px}
+  .trend-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+  .legend{display:flex;flex-wrap:wrap;gap:6px;max-width:100%}
+  .lg{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);border:1px solid var(--line);padding:5px 10px;border-radius:999px;cursor:pointer;user-select:none;transition:.12s}
+  .lg .dot{width:9px;height:9px;border-radius:3px}.lg.off{opacity:.38;text-decoration:line-through}
+  .chartbox{position:relative}
+  .tip{position:absolute;pointer-events:none;background:var(--ink);color:#fff;border-radius:10px;padding:9px 11px;font-size:12px;opacity:0;transition:opacity .1s;min-width:150px;z-index:5;box-shadow:0 8px 24px -8px rgba(0,0,0,.5);max-height:280px;overflow:hidden}
+  .tip .td{font-size:11px;color:#9aa6bd;margin-bottom:5px;font-weight:600}
+  .tip .tr{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:2px 0}
+  .tip .tr .lbl{display:flex;align-items:center;gap:6px;color:#cfd6e3}
+  .tip .tr .dot{width:8px;height:8px;border-radius:2px}.tip .tr b{font-variant-numeric:tabular-nums}
+
+  .tablepanel{padding:20px 22px 8px;overflow-x:auto}
+  .tablepanel .th-flex{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:right;padding:8px 11px;white-space:nowrap}
+  th{font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--soft);font-weight:600;border-bottom:2px solid var(--line);position:sticky;top:0;background:#fff}
+  th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:#fff;z-index:1}
+  th:first-child{z-index:2}
+  td{border-bottom:1px solid #eef1f4;font-variant-numeric:tabular-nums}
+  tbody tr:hover td{background:#f9fafb}
+  td.pos{color:var(--pos)} td.neg{color:var(--neg)} td.zero{color:#c2c9d4}
+  td.tot{font-weight:700} .uhead{font-weight:700;color:#fff;border-radius:5px;padding:2px 9px;font-size:11px;display:inline-block}
+
+  .foot{margin-top:26px;color:var(--soft);font-size:12px;text-align:center;line-height:1.7}
+
+  /* test toggle */
+  .optbar{padding:13px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .tgl{display:inline-flex;align-items:center;gap:10px;font-size:13.5px;color:var(--ink2);cursor:pointer;user-select:none;font-weight:500}
+  .tgl b{font-weight:700}
+  .tgl input{display:none}
+  .tgl .sw{width:38px;height:22px;border-radius:999px;background:#d3d9e2;position:relative;transition:.2s;flex:0 0 auto}
+  .tgl .sw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .tgl input:checked+.sw{background:var(--neg)}
+  .tgl input:checked+.sw::after{transform:translateX(16px)}
+  .test-tag{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#c87913;background:#fbf0dd;border-radius:5px;padding:2px 7px}
+  .opt-note{font-size:12px;color:var(--soft)}
+
+  .drop{position:fixed;inset:0;background:rgba(13,21,38,.82);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:50;color:#fff;text-align:center}
+  .drop.show{display:flex}.drop .box{border:2px dashed #4a5a78;border-radius:18px;padding:50px 70px}
+  .drop h2{font-family:'Space Grotesk',sans-serif;margin:0 0 6px}
+
+  @media(max-width:860px){.kpis{grid-template-columns:1fr 1fr}.limgrid{grid-template-columns:repeat(2,1fr)}}
+</style>
+
+<header>
+  <div class="hd">
+    <div class="brand"><span class="eyebrow">Tesouraria · Saldos diários</span><h1>Painel de Saldos</h1></div>
+    <div class="hd-right">
+      <div class="stamp">Competência <b id="st-month">—</b> · último dia <b id="st-date">—</b></div>
+      <div class="stamp" id="src-line" style="font-size:11px"></div>
+      <div id="sync-status"></div>
+      <details class="sync">
+        <summary>⚙ Publicar/ler online</summary>
+        <div class="sync-box">
+          <input id="syncUrl" spellcheck="false" placeholder="URL do Apps Script (Web App)">
+          <div class="row">
+            <input id="syncToken" type="password" spellcheck="false" placeholder="Token (opcional)">
+            <button class="btn" id="syncSaveBtn" style="box-shadow:none">Salvar</button>
+          </div>
+          <div class="hint">Configure uma vez (mesma URL para todo o time). Ao subir uma planilha, ela é publicada aqui automaticamente; ao abrir o painel, ele lê primeiro dessa fonte antes dos dados salvos localmente.</div>
+        </div>
+      </details>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn" id="savebtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Salvar painel</button>
+        <button class="btn" id="upbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>Atualizar planilha</button>
+      </div>
+      <input type="file" id="file" accept=".xlsx,.xls" style="display:none">
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+
+    <section class="panel optbar" id="optbar">
+      <label class="tgl"><input type="checkbox" id="excl-vinc"><span class="sw"></span>Excluir <b>Daycoval Vinculada</b> da soma</label>
+      <span class="opt-note" id="opt-note">Soma considera todas as contas.</span>
+    </section>
+    <section class="grid kpis" id="kpis"></section>
+
+    <!-- LIMITES (LIS) -->
+    <section class="panel limits">
+      <div class="lim-head">
+        <div class="ptitle">Limite de crédito utilizado (LIS)</div>
+        <div class="daypick"><span>Posição em</span><select id="limday"></select></div>
+      </div>
+      <div class="limgrid" id="limgrid"></div>
+      <div class="limtot" id="limtot"></div>
+    </section>
+
+    <!-- DETALHE POR UNIDADE -->
+    <section class="panel trend">
+      <div class="trend-head">
+        <div>
+          <div class="ptitle" style="margin-bottom:8px">Saldo diário por conta</div>
+          <div class="tabs" id="tabs"></div>
+        </div>
+      </div>
+      <div class="legend" id="legend" style="margin-bottom:8px"></div>
+      <div class="chartbox" id="chartbox"><div class="tip" id="tip"></div></div>
+    </section>
+
+    <!-- MATRIZ DIÁRIA -->
+    <section class="panel tablepanel">
+      <div class="th-flex">
+        <div class="ptitle">Saldos diários — todas as contas · <span id="tbl-unit">—</span></div>
+        <div style="font-size:12px;color:var(--soft)">vermelho = saldo negativo</div>
+      </div>
+      <table id="tbl"><thead></thead><tbody></tbody></table>
+    </section>
+
+  </div>
+
+  <div class="foot">
+    Painel gerado a partir de <b>Planilha_Saldos_JUNHO.xlsx</b> — cada unidade exibida separadamente, sem consolidar.<br>
+    Para atualizar: edite a planilha, clique em <b>Atualizar planilha</b> (ou arraste o arquivo aqui). <a href="#" id="clearbtn" style="color:var(--muted)">Limpar dados salvos</a>
+  </div>
+</div>
+
+<div class="drop" id="drop"><div class="box"><h2>Solte a planilha aqui</h2><div>.xlsx com as abas LOG, CARGO e ALLEANZA</div></div></div>
+
+<script type="application/json" id="basedata">{"month": "Junho/2026", "units": [{"name": "LOG", "color": "#2563eb", "banks": ["ITAÚ LOG", "SANTANDER LOG", "CAIXA LOG 177", "CAIXA LOG 262", "DAYCOVAL LOG", "DAYCOVAL LOG VINCULADA", "INTER LOG", "SICRED", "TRANSPOCRED LOG", "SOFISA"], "cash": [{"conta": "TRANSPOCRED", "valor": 50000.0}], "records": [{"date": "2026-06-01", "balances": {"ITAÚ LOG": 98799.26, "SANTANDER LOG": 0.0, "CAIXA LOG 177": 629.85, "CAIXA LOG 262": 390.4, "DAYCOVAL LOG": 365.44, "DAYCOVAL LOG VINCULADA": -389746.94, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": -2127.93, "SOFISA": 0.0}, "total": -290932.06}, {"date": "2026-06-02", "balances": {"ITAÚ LOG": 224657.39, "SANTANDER LOG": 0.0, "CAIXA LOG 177": 108.32, "CAIXA LOG 262": 381.9, "DAYCOVAL LOG": 1024.1, "DAYCOVAL LOG VINCULADA": -350000.0, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": 970.26, "SOFISA": 0.0}, "total": -122100.16999999998}, {"date": "2026-06-03", "balances": {"ITAÚ LOG": 46412.76, "SANTANDER LOG": 0.0, "CAIXA LOG 177": 261.86, "CAIXA LOG 262": 210.28, "DAYCOVAL LOG": 281.56, "DAYCOVAL LOG VINCULADA": -350000.0, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": 5138.18, "SOFISA": 0.0}, "total": -296937.5}, {"date": "2026-06-05", "balances": {"ITAÚ LOG": 72495.1, "SANTANDER LOG": 0.0, "CAIXA LOG 177": 922.43, "CAIXA LOG 262": 629.84, "DAYCOVAL LOG": 751.83, "DAYCOVAL LOG VINCULADA": -350000.0, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": 555.45, "SOFISA": 0.0}, "total": -273887.49}, {"date": "2026-06-08", "balances": {"ITAÚ LOG": 71253.86, "SANTANDER LOG": 0.0, "CAIXA LOG 177": 137.07, "CAIXA LOG 262": -99387.16, "DAYCOVAL LOG": 284.55, "DAYCOVAL LOG VINCULADA": -350000.0, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": -61625.85, "SOFISA": 0.0}, "total": -438579.67}, {"date": "2026-06-09", "balances": {"ITAÚ LOG": 637464.94, "SANTANDER LOG": 0.0, "CAIXA LOG 177": 325.81, "CAIXA LOG 262": 779.16, "DAYCOVAL LOG": -2137.38, "DAYCOVAL LOG VINCULADA": -350000.0, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": 538.95, "SOFISA": 0.0}, "total": 287729.34}, {"date": "2026-06-10", "balances": {"ITAÚ LOG": 44788.2, "SANTANDER LOG": 0.0, "CAIXA LOG 177": 321.52, "CAIXA LOG 262": 470.66, "DAYCOVAL LOG": 213.89, "DAYCOVAL LOG VINCULADA": -350000.0, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": -79441.21, "SOFISA": 0.0}, "total": -382889.08}, {"date": "2026-06-11", "balances": {"ITAÚ LOG": 204522.48, "SANTANDER LOG": 0.0, "CAIXA LOG 177": 436.4, "CAIXA LOG 262": 128.76, "DAYCOVAL LOG": 748.74, "DAYCOVAL LOG VINCULADA": -350000.0, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": 866.23, "SOFISA": 0.0}, "total": -142539.52999999997}, {"date": "2026-06-12", "balances": {"ITAÚ LOG": 237435.54, "SANTANDER LOG": 0.0, "CAIXA LOG 177": 0.0, "CAIXA LOG 262": 746.88, "DAYCOVAL LOG": 346258.59, "DAYCOVAL LOG VINCULADA": -350000.0, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": 734.78, "SOFISA": 0.0}, "total": 235933.65000000002}, {"date": "2026-06-15", "balances": {"ITAÚ LOG": 361147.11, "SANTANDER LOG": 0.0, "CAIXA LOG 177": 0.0, "CAIXA LOG 262": -99281.09, "DAYCOVAL LOG": 284828.89, "DAYCOVAL LOG VINCULADA": -336136.93, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": -79485.31, "SOFISA": 0.0}, "total": 131830.53000000006}, {"date": "2026-06-16", "balances": {"ITAÚ LOG": 153130.27, "SANTANDER LOG": 0.0, "CAIXA LOG 177": 0.0, "CAIXA LOG 262": 499.13, "DAYCOVAL LOG": 34245.4, "DAYCOVAL LOG VINCULADA": -336136.93, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": 1119.62, "SOFISA": 0.0}, "total": -146384.65}, {"date": "2026-06-17", "balances": {"ITAÚ LOG": 11158.04, "SANTANDER LOG": 21.5, "CAIXA LOG 177": 0.0, "CAIXA LOG 262": 118.12, "DAYCOVAL LOG": 685.14, "DAYCOVAL LOG VINCULADA": -336136.93, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": -79435.04, "SOFISA": 0.0}, "total": -402831.31}, {"date": "2026-06-18", "balances": {"ITAÚ LOG": 77781.12, "SANTANDER LOG": 21.5, "CAIXA LOG 177": 0.0, "CAIXA LOG 262": 186.66, "DAYCOVAL LOG": 9.04, "DAYCOVAL LOG VINCULADA": -336136.93, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": 1263.8, "SOFISA": 0.0}, "total": -256116.94999999998}, {"date": "2026-06-19", "balances": {"ITAÚ LOG": 16325.65, "SANTANDER LOG": 21.5, "CAIXA LOG 177": 0.0, "CAIXA LOG 262": -99724.6, "DAYCOVAL LOG": 717.79, "DAYCOVAL LOG VINCULADA": -336136.93, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": -79532.89, "SOFISA": 0.0}, "total": -497571.62000000005}, {"date": "2026-06-22", "balances": {"ITAÚ LOG": 330824.8, "SANTANDER LOG": 47.66, "CAIXA LOG 177": 0.0, "CAIXA LOG 262": 19.63, "DAYCOVAL LOG": 309.09, "DAYCOVAL LOG VINCULADA": -336136.93, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": 260.62, "SOFISA": 0.0}, "total": -3917.2699999999995}, {"date": "2026-06-23", "balances": {"ITAÚ LOG": 110366.49, "SANTANDER LOG": 47.66, "CAIXA LOG 177": 0.0, "CAIXA LOG 262": 299.37, "DAYCOVAL LOG": 35.6, "DAYCOVAL LOG VINCULADA": -336136.93, "INTER LOG": 433.35, "SICRED": 324.51, "TRANSPOCRED LOG": 788.69, "SOFISA": 0.0}, "total": -223841.25999999998}]}, {"name": "CARGO", "color": "#0d9488", "banks": ["ITAÚ CARGO", "ITAU SVC", "SANTANDER CARGO GRU", "CAIXA CARGO", "DAYCOVAL CARGO VINCULADA", "DAYCOVAL CARGO", "INTER CARGO", "TRANSPOCRED CARGO", "BANCO DO BRASIL"], "cash": [{"conta": "DAYCOVAL V.", "valor": 150000.0}], "records": [{"date": "2026-06-01", "balances": {"ITAÚ CARGO": 545.64, "ITAU SVC": 300.0, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 161.62, "DAYCOVAL CARGO VINCULADA": -225224.33, "DAYCOVAL CARGO": 778.04, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": -220753.16999999998}, {"date": "2026-06-02", "balances": {"ITAÚ CARGO": 83.3, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 245.63, "DAYCOVAL CARGO VINCULADA": -200000.0, "DAYCOVAL CARGO": 1015.76, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": -195888.41}, {"date": "2026-06-03", "balances": {"ITAÚ CARGO": 615.65, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 400.73, "DAYCOVAL CARGO VINCULADA": -200000.0, "DAYCOVAL CARGO": 735.48, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": -195481.24}, {"date": "2026-06-05", "balances": {"ITAÚ CARGO": 678.47, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 451.43, "DAYCOVAL CARGO VINCULADA": -200000.0, "DAYCOVAL CARGO": 692.52, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": -195410.68000000002}, {"date": "2026-06-08", "balances": {"ITAÚ CARGO": 514.41, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 341.51, "DAYCOVAL CARGO VINCULADA": -200000.0, "DAYCOVAL CARGO": 567.94, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": -195809.24}, {"date": "2026-06-09", "balances": {"ITAÚ CARGO": 159.92, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 379.13, "DAYCOVAL CARGO VINCULADA": -200000.0, "DAYCOVAL CARGO": 567.94, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": -196126.11}, {"date": "2026-06-10", "balances": {"ITAÚ CARGO": 564.63, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 262.82, "DAYCOVAL CARGO VINCULADA": -200000.0, "DAYCOVAL CARGO": 469.82, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": -195935.83}, {"date": "2026-06-11", "balances": {"ITAÚ CARGO": 617.43, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 262.82, "DAYCOVAL CARGO VINCULADA": -200000.0, "DAYCOVAL CARGO": 7001.17, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": -189351.68}, {"date": "2026-06-12", "balances": {"ITAÚ CARGO": 847.89, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 262.82, "DAYCOVAL CARGO VINCULADA": -200000.0, "DAYCOVAL CARGO": 200676.82, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": 4554.429999999993}, {"date": "2026-06-15", "balances": {"ITAÚ CARGO": 473.42, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 2672.3, "DAYCOVAL CARGO VINCULADA": -422.82, "DAYCOVAL CARGO": 704.32, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": 6194.120000000001}, {"date": "2026-06-16", "balances": {"ITAÚ CARGO": 491.58, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 522.93, "DAYCOVAL CARGO VINCULADA": -422.82, "DAYCOVAL CARGO": 704.32, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": 4062.91}, {"date": "2026-06-17", "balances": {"ITAÚ CARGO": 461.73, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 182.76, "DAYCOVAL CARGO VINCULADA": -422.82, "DAYCOVAL CARGO": 582.51, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": 3571.08}, {"date": "2026-06-18", "balances": {"ITAÚ CARGO": 374.38, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 219.75, "DAYCOVAL CARGO VINCULADA": -422.82, "DAYCOVAL CARGO": 827.07, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": 3765.28}, {"date": "2026-06-19", "balances": {"ITAÚ CARGO": 213.86, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 286.4, "DAYCOVAL CARGO VINCULADA": -422.82, "DAYCOVAL CARGO": 681.0, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": 3525.34}, {"date": "2026-06-22", "balances": {"ITAÚ CARGO": 473.0, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 370.2, "DAYCOVAL CARGO VINCULADA": -188661.43, "DAYCOVAL CARGO": 741.28, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": -184310.05}, {"date": "2026-06-23", "balances": {"ITAÚ CARGO": 885.48, "ITAU SVC": 81.04, "SANTANDER CARGO GRU": 2685.86, "CAIXA CARGO": 489.63, "DAYCOVAL CARGO VINCULADA": -188661.43, "DAYCOVAL CARGO": 741.28, "INTER CARGO": 0.0, "TRANSPOCRED CARGO": 0.0, "BANCO DO BRASIL": 0.0}, "total": -183778.13999999998}]}, {"name": "ALLEANZA", "color": "#9333ea", "banks": ["ITAÚ CARGO", "DAYCOVAL", "DAYCOVAL VINCULADA", "TRANSPOCRED", "SANTANDER ALLEANZA"], "cash": [{"conta": "DAYCOVAL V.", "valor": 300000.0}], "records": [{"date": "2026-06-01", "balances": {"ITAÚ CARGO": 10537.09, "DAYCOVAL": 70.71, "DAYCOVAL VINCULADA": -256419.52, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": -245211.72}, {"date": "2026-06-02", "balances": {"ITAÚ CARGO": 9858.64, "DAYCOVAL": 70.71, "DAYCOVAL VINCULADA": -256419.52, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": -245890.16999999998}, {"date": "2026-06-03", "balances": {"ITAÚ CARGO": 102832.3, "DAYCOVAL": 26.92, "DAYCOVAL VINCULADA": -256463.31, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": -153004.09}, {"date": "2026-06-05", "balances": {"ITAÚ CARGO": 314.38, "DAYCOVAL": 26.92, "DAYCOVAL VINCULADA": -256463.31, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": -255522.01}, {"date": "2026-06-08", "balances": {"ITAÚ CARGO": 462.24, "DAYCOVAL": 50026.92, "DAYCOVAL VINCULADA": -206463.31, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": -155374.15}, {"date": "2026-06-09", "balances": {"ITAÚ CARGO": 6324.47, "DAYCOVAL": 26.92, "DAYCOVAL VINCULADA": -206463.31, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": -199511.91999999998}, {"date": "2026-06-10", "balances": {"ITAÚ CARGO": 1049.48, "DAYCOVAL": 127.92, "DAYCOVAL VINCULADA": -106463.31, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": -104685.91}, {"date": "2026-06-11", "balances": {"ITAÚ CARGO": 6172.78, "DAYCOVAL": 127.92, "DAYCOVAL VINCULADA": -106463.31, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": -99562.61}, {"date": "2026-06-12", "balances": {"ITAÚ CARGO": 362.61, "DAYCOVAL": 109127.92, "DAYCOVAL VINCULADA": -106463.31, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": 3627.220000000001}, {"date": "2026-06-15", "balances": {"ITAÚ CARGO": 388.42, "DAYCOVAL": 2664.61, "DAYCOVAL VINCULADA": 0.0, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": 3653.03}, {"date": "2026-06-16", "balances": {"ITAÚ CARGO": 404.07, "DAYCOVAL": 2664.61, "DAYCOVAL VINCULADA": 0.0, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": 3668.6800000000003}, {"date": "2026-06-17", "balances": {"ITAÚ CARGO": 492.09, "DAYCOVAL": 2352.49, "DAYCOVAL VINCULADA": 0.0, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": 3444.58}, {"date": "2026-06-18", "balances": {"ITAÚ CARGO": 1125.32, "DAYCOVAL": 2310.45, "DAYCOVAL VINCULADA": -300000.0, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": -295964.23}, {"date": "2026-06-19", "balances": {"ITAÚ CARGO": 557.0, "DAYCOVAL": 2310.45, "DAYCOVAL VINCULADA": -300000.0, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": -296532.55}, {"date": "2026-06-22", "balances": {"ITAÚ CARGO": 601.48, "DAYCOVAL": 2310.45, "DAYCOVAL VINCULADA": -300000.0, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": -296488.07}, {"date": "2026-06-23", "balances": {"ITAÚ CARGO": 334.03, "DAYCOVAL": 2310.45, "DAYCOVAL VINCULADA": -300000.0, "TRANSPOCRED": 600.0, "SANTANDER ALLEANZA": 370.0}, "total": -296755.52}]}]}</script>
+<script>
+const EMBEDDED = JSON.parse(document.getElementById('basedata').textContent);
+const KEY='painelSaldosBase';
+let canSave=true, DATA=EMBEDDED;
+const LIMITS = [
+  {nome:'LOG', valor:350000, obs:'Daycoval Vinculada LOG', m:(u,b)=>u==='LOG'&&/daycoval/i.test(b)&&/vincul/i.test(b)},
+  {nome:'CARGO', valor:200000, obs:'Daycoval Vinculada CARGO', m:(u,b)=>u==='CARGO'&&/daycoval/i.test(b)&&/vincul/i.test(b)},
+  {nome:'ALLEANZA', valor:300000, obs:'Daycoval Vinculada ALLEANZA', m:(u,b)=>u==='ALLEANZA'&&/daycoval/i.test(b)&&/vincul/i.test(b)},
+  {nome:'TRANSPOCRED', valor:80000, obs:'Contas Transpocred (todas as unidades)', m:(u,b)=>/transpocred/i.test(b)},
+  {nome:'SOFISA', valor:77774.81, obs:'Contas Sofisa (todas as unidades)', m:(u,b)=>/sofisa/i.test(b)}
+];
+const BANKPAL = ['#2f6df0','#0d9488','#8b46d6','#c87913','#d6455d','#3aa0a0','#b5562a','#5566c9','#9a7b1f','#4a8f5e','#a3568f','#7b8b3a'];
+
+const BRL = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:2}).format(v||0);
+const BRL0 = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(v||0);
+const BRLk = v => {const a=Math.abs(v||0),s=v<0?'-':'';if(a>=1e6)return s+'R$ '+(a/1e6).toFixed(2).replace('.',',')+' mi';if(a>=1e3)return s+'R$ '+(a/1e3).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,'.')+' mil';return BRL(v);};
+const dDM = iso => {const[y,m,d]=iso.split('-');return d+'/'+m;};
+const dDMY = iso => {const[y,m,d]=iso.split('-');return d+'/'+m+'/'+y;};
+
+let STATE={unit:0, hidden:new Set(), limDay:null, exclVinc:false};
+
+const isVinc=b=>/daycoval/i.test(b)&&/vincul/i.test(b);
+function effTotal(u,rec){
+  if(!STATE.exclVinc)return rec.total;
+  let t=0; u.banks.forEach(b=>{ if(!isVinc(b)) t+=(rec.balances[b]||0); });
+  return t;
+}
+
+/* ---- limit usage from daily balances ---- */
+function unionDates(d){
+  const s=new Set(); d.units.forEach(u=>u.records.forEach(r=>s.add(r.date)));
+  return [...s].sort();
+}
+function recAt(u,iso){ for(let i=0;i<u.records.length;i++) if(u.records[i].date===iso) return u.records[i]; return null; }
+
+function limitUsage(d, iso){
+  return LIMITS.map(L=>{
+    let usado=0;
+    d.units.forEach(u=>{const rec=recAt(u,iso); if(!rec)return;
+      u.banks.forEach(b=>{ if(L.m(u.name,b)){ const v=rec.balances[b]||0; usado+=Math.max(0,-v); }});});
+    const disp=L.valor-usado, pct=usado/L.valor*100;
+    return {...L, usado, disp, pct, over:usado>L.valor};
+  });
+}
+
+/* ---- parse upload ---- */
+function parseWorkbook(buf){
+  const wb=XLSX.read(buf,{cellDates:true});
+  const pal={LOG:'#2f6df0',CARGO:'#0d9488',ALLEANZA:'#8b46d6'};
+  const units=[]; let month=DATA.month;
+  wb.SheetNames.forEach(sn=>{
+    const m=sn.toUpperCase();
+    const label=m.includes('ALLEANZA')?'ALLEANZA':m.includes('CARGO')?'CARGO':m.includes('LOG')?'LOG':null;
+    if(!label)return;
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true});
+    if(!rows.length)return;
+    const head=rows[0].map(h=>String(h==null?'':h).trim());
+    const iData=head.findIndex(h=>/data/i.test(h));
+    const iTot=head.findIndex(h=>/saldo total/i.test(h));
+    const bankIdx=[],banks=[];
+    head.forEach((h,i)=>{if(i>iData&&(iTot<0||i<iTot)&&h){bankIdx.push(i);banks.push(h.replace(/\(R\$\)/i,'').trim());}});
+    const records=[];
+    for(let r=1;r<rows.length;r++){
+      const row=rows[r];if(!row)continue;
+      if(!bankIdx.some(i=>row[i]!=null&&row[i]!==''))continue;
+      const dv=row[iData];let iso='';
+      if(dv instanceof Date)iso=new Date(dv.getTime()-dv.getTimezoneOffset()*60000).toISOString().slice(0,10);
+      else if(typeof dv==='number')iso=new Date(Math.round((dv-25569)*86400000)).toISOString().slice(0,10);
+      else iso=String(dv);
+      const balances={};let sum=0;
+      bankIdx.forEach((i,k)=>{const v=Number(row[i])||0;balances[banks[k]]=v;sum+=v;});
+      const tot=iTot>=0&&row[iTot]!=null&&row[iTot]!==''?Number(row[iTot]):sum;
+      records.push({date:iso,balances,total:tot});
+    }
+    if(records.length){const p=records[0].date,mn=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][+p.slice(5,7)-1];month=mn.charAt(0).toUpperCase()+mn.slice(1)+'/'+p.slice(0,4);}
+    units.push({name:label,color:pal[label],banks,records});
+  });
+  if(!units.length)throw new Error('Nenhuma aba reconhecida (LOG / CARGO / ALLEANZA).');
+  // keep canonical order LOG, CARGO, ALLEANZA
+  const order={LOG:0,CARGO:1,ALLEANZA:2};
+  units.sort((a,b)=>order[a.name]-order[b.name]);
+  return {month,units};
+}
+
+/* ---- sparkline ---- */
+function spark(vals,color){
+  const w=150,h=34,lo=Math.min(...vals,0),hi=Math.max(...vals,0),pv=(hi-lo)*.1||1,L=lo-pv,H=hi+pv;
+  const X=i=>i*w/(vals.length-1),Y=v=>h-(v-L)*h/(H-L);let p='';
+  vals.forEach((v,i)=>p+=(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)+' ');
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" width="100%" height="34" preserveAspectRatio="none"><line x1="0" y1="${Y(0)}" x2="${w}" y2="${Y(0)}" stroke="#e4e8ee"/><path d="${p}" fill="none" stroke="${color}" stroke-width="1.8" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><circle cx="${X(vals.length-1)}" cy="${Y(vals[vals.length-1])}" r="2.4" fill="${color}"/></svg>`;
+}
+
+/* ---- multi-line chart for one unit (all accounts + total) ---- */
+function buildChart(d){
+  const u=d.units[STATE.unit];
+  const box=document.getElementById('chartbox');
+  const W=box.clientWidth||860,H=320,pad={l:66,r:14,t:14,b:30};
+  const dates=u.records.map(r=>r.date),n=dates.length;
+  const series=[{key:'__TOTAL',name:STATE.exclVinc?'Saldo total (s/ vinculada)':'Saldo total',color:'#0d1526',vals:u.records.map(r=>effTotal(u,r)),wide:true}];
+  u.banks.forEach((b,i)=>series.push({key:b,name:b,color:BANKPAL[i%BANKPAL.length],vals:u.records.map(r=>r.balances[b]||0)}));
+  const vis=series.filter(s=>!STATE.hidden.has(s.key));
+  let lo=Infinity,hi=-Infinity;vis.forEach(s=>s.vals.forEach(v=>{lo=Math.min(lo,v);hi=Math.max(hi,v);}));
+  if(!isFinite(lo)){lo=0;hi=1;}lo=Math.min(lo,0);hi=Math.max(hi,0);
+  const pv=(hi-lo)*.08||1;lo-=pv;hi+=pv;
+  const X=i=>pad.l+(n<=1?0:i*(W-pad.l-pad.r)/(n-1)),Y=v=>pad.t+(hi-v)*(H-pad.t-pad.b)/(hi-lo);
+  let g='';const steps=5;
+  for(let k=0;k<=steps;k++){const v=lo+(hi-lo)*k/steps,y=Y(v),zero=Math.abs(v)<(hi-lo)/200;
+    g+=`<line x1="${pad.l}" y1="${y}" x2="${W-pad.r}" y2="${y}" stroke="${zero?'#c9d2de':'#eef1f5'}" stroke-width="${zero?1.4:1}"/>`;
+    g+=`<text x="${pad.l-9}" y="${y+4}" text-anchor="end" font-size="10.5" fill="#9aa6b6" font-family="Inter">${BRLk(v)}</text>`;}
+  const every=Math.ceil(n/8);
+  dates.forEach((dt,i)=>{if(i%every===0||i===n-1)g+=`<text x="${X(i)}" y="${H-9}" text-anchor="middle" font-size="10.5" fill="#9aa6b6" font-family="Inter">${dDM(dt)}</text>`;});
+  let paths='';
+  vis.forEach(s=>{let dp='';s.vals.forEach((v,i)=>dp+=(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)+' ');
+    paths+=`<path d="${dp}" fill="none" stroke="${s.color}" stroke-width="${s.wide?3.2:1.6}" stroke-linejoin="round" stroke-linecap="round" opacity="${s.wide?1:.92}"/>`;
+    if(s.wide)s.vals.forEach((v,i)=>paths+=`<circle cx="${X(i)}" cy="${Y(v)}" r="2.4" fill="${s.color}"/>`);});
+  let hot='';for(let i=0;i<n;i++)hot+=`<rect class="hot" data-i="${i}" x="${X(i)-(W-pad.l-pad.r)/Math.max(n-1,1)/2}" y="${pad.t}" width="${(W-pad.l-pad.r)/Math.max(n-1,1)}" height="${H-pad.t-pad.b}" fill="transparent"/>`;
+  const cross=`<line id="cross" x1="0" y1="${pad.t}" x2="0" y2="${H-pad.b}" stroke="#0d1526" stroke-width="1" stroke-dasharray="3 3" opacity="0"/>`;
+  box.querySelector('svg')?.remove();
+  box.insertAdjacentHTML('beforeend',`<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block">${g}${cross}${paths}${hot}</svg>`);
+  const tip=document.getElementById('tip'),crossEl=document.getElementById('cross');
+  box.querySelectorAll('.hot').forEach(h=>h.addEventListener('mouseenter',()=>{
+    const i=+h.dataset.i,xx=X(i);crossEl.setAttribute('x1',xx);crossEl.setAttribute('x2',xx);crossEl.setAttribute('opacity','.5');
+    let rows='';vis.forEach(s=>{rows+=`<div class="tr"><span class="lbl"><span class="dot" style="background:${s.color}"></span>${s.name}</span><b>${BRL(s.vals[i])}</b></div>`;});
+    tip.innerHTML=`<div class="td">${dDMY(dates[i])} · ${u.name}</div>${rows}`;tip.style.opacity=1;
+    const tw=tip.offsetWidth;let lx=xx+12;if(lx+tw>W)lx=xx-tw-12;tip.style.left=Math.max(4,lx)+'px';tip.style.top=pad.t+'px';
+  }));
+  box.onmouseleave=()=>{tip.style.opacity=0;crossEl.setAttribute('opacity','0');};
+}
+
+/* ---- render ---- */
+function render(d){
+  if(!d.units||!d.units.length){alert('A planilha não trouxe nenhuma unidade (LOG/CARGO/ALLEANZA).');return;}
+  if(STATE.unit>=d.units.length)STATE.unit=0;
+  const ac=(d.units[STATE.unit]||d.units[0]).color;
+  document.documentElement.style.setProperty('--ac',ac);
+  document.getElementById('st-month').textContent=d.month;
+  const alld=unionDates(d);
+  document.getElementById('st-date').textContent=alld.length?dDMY(alld[alld.length-1]):'—';
+
+  // KPI cards (separados) — cada unidade usa o próprio último dia
+  document.getElementById('kpis').innerHTML=d.units.map((u,idx)=>{
+    const lu=u.records.length-1;
+    const cur=lu>=0?effTotal(u,u.records[lu]):0;
+    const pr=lu>0?effTotal(u,u.records[lu-1]):cur;
+    const dl=cur-pr;
+    return `<div class="kpi ${idx===STATE.unit?'sel':''}" data-u="${idx}" style="--ac:${u.color}">
+      <span class="sel-tag">EM EXIBIÇÃO</span>
+      <span class="tag"><span class="dot" style="background:${u.color}"></span>${u.name}</span>
+      <div class="val num" style="color:${cur<0?'var(--neg)':'var(--ink)'}">${BRL(cur)}</div>
+      <div class="row"><span class="d ${dl>=0?'up':'down'}">${dl>=0?'▲ +':'▼ '}${BRL(dl)}</span><span style="font-size:11.5px;color:var(--soft)">vs dia anterior</span></div>
+      ${spark(u.records.length?u.records.map(r=>effTotal(u,r)):[0],u.color)}</div>`;}).join('')
+    +(()=>{
+      const alldt=unionDates(d);
+      const sumAt=iso=>d.units.reduce((s,u)=>{const r=recAt(u,iso);return s+(r?effTotal(u,r):0);},0);
+      const cur=alldt.length?sumAt(alldt[alldt.length-1]):0;
+      const pr=alldt.length>1?sumAt(alldt[alldt.length-2]):cur;
+      const dl=cur-pr;
+      return `<div class="kpi total" style="--ac:#0d1526">
+        <span class="tag"><span class="dot"></span>TOTAL (LOG+CARGO+ALLEANZA)</span>
+        <div class="val num" style="color:${cur<0?'#ff8a80':'#fff'}">${BRL(cur)}</div>
+        <div class="row"><span class="d" style="color:${dl>=0?'#8bd4a8':'#ff8a80'}">${dl>=0?'▲ +':'▼ '}${BRL(dl)}</span><span style="font-size:11.5px;color:#9aa7c2">vs dia anterior</span></div>
+        ${spark(alldt.length?alldt.map(sumAt):[0],'#7e8ba6')}</div>`;
+    })();
+  document.querySelectorAll('.kpi:not(.total)').forEach(el=>el.onclick=()=>{STATE.unit=+el.dataset.u;STATE.hidden=new Set();render(d);});
+
+  // limits — utilização lida dos saldos diários, casada por DATA
+  if(STATE.limDay==null||!alld.includes(STATE.limDay))STATE.limDay=alld[alld.length-1];
+  const lsel=document.getElementById('limday');
+  lsel.innerHTML=alld.map(dt=>`<option value="${dt}" ${dt===STATE.limDay?'selected':''}>${dDMY(dt)}</option>`).join('');
+  lsel.onchange=()=>{STATE.limDay=lsel.value;renderLimits(d);};
+  renderLimits(d);
+
+  // tabs
+  document.getElementById('tabs').innerHTML=d.units.map((u,i)=>`<span class="tab ${i===STATE.unit?'on':''}" data-u="${i}" style="${i===STATE.unit?`background:${u.color}`:''}"><span class="dot" style="background:${i===STATE.unit?'#fff':u.color}"></span>${u.name}</span>`).join('');
+  document.querySelectorAll('.tab').forEach(el=>el.onclick=()=>{STATE.unit=+el.dataset.u;STATE.hidden=new Set();render(d);});
+
+  // legend
+  const u=d.units[STATE.unit];
+  const sk=[{k:'__TOTAL',n:'Saldo total',c:'#0d1526'},...u.banks.map((b,i)=>({k:b,n:b,c:BANKPAL[i%BANKPAL.length]}))];
+  document.getElementById('legend').innerHTML=sk.map(s=>`<span class="lg ${STATE.hidden.has(s.k)?'off':''}" data-k="${s.k}"><span class="dot" style="background:${s.c}"></span>${s.n}</span>`).join('');
+  document.querySelectorAll('.lg').forEach(el=>el.onclick=()=>{const k=el.dataset.k;STATE.hidden.has(k)?STATE.hidden.delete(k):STATE.hidden.add(k);buildChart(d);el.classList.toggle('off');});
+
+  buildChart(d);
+  renderTable(d);
+}
+
+function renderLimits(d){
+  const rows=limitUsage(d, STATE.limDay);
+  const col=p=>p>=95?'#cf3b30':p>=80?'#c87913':'#157a45';
+  document.getElementById('limgrid').innerHTML=rows.map(r=>{
+    const w=Math.min(100,Math.max(0,r.pct)), c=col(r.pct);
+    return `<div class="limcard">
+      <div class="lc-top"><span class="ln">${r.nome}</span><span class="lpct" style="color:${r.over?'#cf3b30':c}">${r.pct.toFixed(0)}%</span></div>
+      <div class="lbar"><span class="lfill" style="width:${w}%;background:${c}"></span></div>
+      <div class="lrow"><span>Utilizado</span><b class="neg">${BRL(r.usado)}</b></div>
+      <div class="lrow"><span>Disponível</span><b class="${r.disp<0?'neg':'pos'}">${BRL(r.disp)}</b></div>
+      <div class="lrow lim-line"><span>Limite</span><b>${BRL0(r.valor)}</b></div>
+      <div class="lobs">${r.obs}</div>
+    </div>`;}).join('');
+  const tLim=rows.reduce((s,r)=>s+r.valor,0), tUso=rows.reduce((s,r)=>s+r.usado,0), tDisp=tLim-tUso;
+  document.getElementById('limtot').innerHTML=
+    `<div class="tl"><span>Limite total</span><b>${BRL0(tLim)}</b></div>
+     <div class="tl"><span>Utilizado · ${(tUso/tLim*100).toFixed(0)}%</span><b style="color:var(--neg)">${BRL(tUso)}</b></div>
+     <div class="tl"><span>Disponível</span><b style="color:${tDisp<0?'var(--neg)':'var(--pos)'}">${BRL(tDisp)}</b></div>`;
+}
+
+function renderTable(d){
+  const u=d.units[STATE.unit];
+  document.getElementById('tbl-unit').innerHTML=`<span class="uhead" style="background:${u.color}">${u.name}</span>`;
+  const th=document.querySelector('#tbl thead'),tb=document.querySelector('#tbl tbody');
+  th.innerHTML='<tr><th>Data</th>'+u.banks.map(b=>`<th${isVinc(b)&&STATE.exclVinc?' style="color:var(--neg);opacity:.7"':''}>${b}${isVinc(b)&&STATE.exclVinc?' ⊘':''}</th>`).join('')+`<th>${STATE.exclVinc?'Total s/ vinc.':'Saldo total'}</th></tr>`;
+  tb.innerHTML=u.records.map(r=>{
+    const cells=u.banks.map(b=>{const v=r.balances[b]||0;const ex=isVinc(b)&&STATE.exclVinc;const c=v<0?'neg':v>0?'pos':'zero';return `<td class="${c}"${ex?' style="opacity:.4;text-decoration:line-through"':''}>${v===0?'—':BRL(v)}</td>`;}).join('');
+    const t=effTotal(u,r);
+    return `<tr><td>${dDMY(r.date)}</td>${cells}<td class="tot ${t<0?'neg':'pos'}">${BRL(t)}</td></tr>`;
+  }).join('');
+}
+
+function setSource(kind,when){
+  const el=document.getElementById('src-line');
+  if(kind==='online')el.innerHTML='Fonte: <b style="color:#2f6df0">planilha publicada online</b>'+(when?' · '+when:'');
+  else if(kind==='salvos')el.innerHTML='Fonte: <b style="color:#157a45">dados salvos</b>'+(when?' · '+when:'');
+  else if(kind==='embutidos')el.textContent='Fonte: dados embutidos (padrão)';
+  else el.textContent='';
+}
+function fmtNow(){return new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
+
+function saveBase(d){
+  try{ localStorage.setItem(KEY,JSON.stringify({savedAt:new Date().toISOString(),data:d})); setSource('salvos',fmtNow()); }
+  catch(err){ canSave=false; setSource('salvos','não salvo (navegador bloqueia)'); }
+}
+function loadSaved(){
+  try{ const raw=localStorage.getItem(KEY); if(!raw)return null; const o=JSON.parse(raw);
+    if(o&&o.data&&o.data.units&&o.data.units.length)return o; }catch(err){}
+  return null;
+}
+function exportHTML(){
+  const clone=document.documentElement.cloneNode(true);
+  const tag=clone.querySelector('#basedata');
+  if(tag)tag.textContent=JSON.stringify(window.__D).replace(/</g,'\\u003c');
+  // limpa conteúdo renderizado para o arquivo ficar enxuto (é recriado ao abrir)
+  ['kpis','limgrid','limtot','legend','src-line'].forEach(id=>{const n=clone.querySelector('#'+id);if(n)n.innerHTML='';});
+  const cb=clone.querySelector('#chartbox svg'); if(cb)cb.remove();
+  const tb=clone.querySelector('#tbl'); if(tb){const h=tb.querySelector('thead'),b=tb.querySelector('tbody');if(h)h.innerHTML='';if(b)b.innerHTML='';}
+  const html='<!doctype html>\n'+clone.outerHTML;
+  const blob=new Blob([html],{type:'text/html'});
+  const a=document.createElement('a');
+  const dt=window.__D.units[0].records.slice(-1)[0].date;
+  a.href=URL.createObjectURL(blob); a.download='painel_saldos_'+dt+'.html';
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+}
+
+function loadFile(file){
+  const fr=new FileReader();
+  fr.onload=e=>{try{const d=parseWorkbook(e.target.result);const keep=document.getElementById('excl-vinc').checked;STATE={unit:0,hidden:new Set(),limDay:null,exclVinc:keep};window.__D=d;render(d);saveBase(d);publishOnline(d);}catch(err){alert('Não consegui ler a planilha: '+err.message);}};
+  fr.readAsArrayBuffer(file);
+}
+document.getElementById('upbtn').onclick=()=>document.getElementById('file').click();
+document.getElementById('file').onchange=e=>{if(e.target.files[0])loadFile(e.target.files[0]);};
+document.getElementById('savebtn').onclick=exportHTML;
+document.getElementById('clearbtn').onclick=(e)=>{e.preventDefault();try{localStorage.removeItem(KEY);}catch(err){}window.__D=EMBEDDED;STATE={unit:0,hidden:new Set()};render(EMBEDDED);setSource('embutidos');};
+const drop=document.getElementById('drop');
+['dragenter','dragover'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('show');}));
+document.addEventListener('dragleave',e=>{if(e.relatedTarget===null)drop.classList.remove('show');});
+document.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('show');const f=e.dataTransfer.files[0];if(f)loadFile(f);});
+window.addEventListener('resize',()=>{if(window.__D)buildChart(window.__D);});
+
+// toggle: excluir Daycoval Vinculada da soma
+document.getElementById('excl-vinc').onchange=(e)=>{
+  STATE.exclVinc=e.target.checked;
+  document.getElementById('opt-note').textContent=STATE.exclVinc
+    ?'Soma SEM as contas Daycoval Vinculada (LOG, Cargo e Alleanza).'
+    :'Soma considera todas as contas.';
+  if(window.__D)render(window.__D);
+};
+
+// abre com os dados salvos (se houver), senão com os embutidos
+const saved=loadSaved();
+if(saved){ DATA=saved.data; window.__D=DATA; render(DATA); setSource('salvos', new Date(saved.savedAt).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})); }
+else { window.__D=DATA; render(DATA); setSource('embutidos'); }
+
+// ─── Sincronização online (Apps Script) ─────────────────────────────────────
+const SYNC_KEY='painelSaldosSyncCfg';
+const DEFAULT_SYNC_URL='https://script.google.com/macros/s/AKfycbxQgyIP48OzHfzRf9VPibQR7NwiZKQygIHjoaY79OqCCdvfMDtbgtQyCsQiNCQk3HFAPg/exec';
+const DEFAULT_SYNC_TOKEN='tpipb8QSnPny0VfBCvL3Y3xwDQWHkdiQ';
+function loadSyncCfg(){try{const raw=localStorage.getItem(SYNC_KEY);if(raw)return JSON.parse(raw);}catch(e){}return{url:DEFAULT_SYNC_URL,token:DEFAULT_SYNC_TOKEN};}
+function saveSyncCfg(cfg){try{localStorage.setItem(SYNC_KEY,JSON.stringify(cfg));}catch(e){}}
+function syncStatus(kind,msg){
+  const el=document.getElementById('sync-status');
+  const cls=kind==='ok'?'ok':kind==='err'?'err':'wait';
+  el.innerHTML=`<span class="pill-status ${cls}">${msg}</span>`;
+}
+async function fetchOnline(){
+  const cfg=loadSyncCfg();
+  const url=(cfg.url||'').trim();
+  if(!url)return false;
+  syncStatus('wait','Lendo dados publicados…');
+  try{
+    const res=await fetch(url+(url.includes('?')?'&':'?')+'_='+Date.now(),{cache:'no-store'});
+    if(!res.ok)throw{kind:'http',message:'HTTP '+res.status};
+    const d=await res.json();
+    if(!d||!d.units||!d.units.length)throw{kind:'empty',message:'ainda sem dados publicados'};
+    STATE={unit:0,hidden:new Set(),limDay:null,exclVinc:document.getElementById('excl-vinc').checked};
+    window.__D=d;DATA=d;render(d);saveBase(d);
+    setSource('online',fmtNow());
+    syncStatus('ok','✓ lendo ao vivo');
+    return true;
+  }catch(err){
+    if(err&&err.kind==='empty')syncStatus('wait','conectado — aguardando a 1ª planilha ser publicada (clique em "Atualizar planilha")');
+    else syncStatus('err','sem conexão com a fonte online');
+    return false;
+  }
+}
+async function publishOnline(d){
+  const cfg=loadSyncCfg();
+  const url=(cfg.url||'').trim();
+  if(!url)return;
+  syncStatus('wait','Publicando…');
+  try{
+    const body=JSON.stringify(d);
+    const res=await fetch(url+(cfg.token?(url.includes('?')?'&':'?')+'token='+encodeURIComponent(cfg.token):''),{
+      method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body
+    });
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const j=await res.json().catch(()=>({}));
+    if(j&&j.error)throw new Error(j.error);
+    syncStatus('ok','✓ publicado — todo o time já vê essa atualização');
+  }catch(err){
+    syncStatus('err','falha ao publicar: '+(err.message||err));
+  }
+}
+document.getElementById('syncUrl').value=loadSyncCfg().url||'';
+document.getElementById('syncToken').value=loadSyncCfg().token||'';
+document.getElementById('syncSaveBtn').onclick=()=>{
+  saveSyncCfg({url:document.getElementById('syncUrl').value.trim(),token:document.getElementById('syncToken').value.trim()});
+  fetchOnline();
+};
+// ao abrir a página, tenta ler a fonte online (se configurada) por cima do que já foi renderizado acima
+fetchOnline();
+</script>
