@@ -141,20 +141,39 @@
   .alert-item.sev-warn .ai-badge{color:#B5720F;border-color:#F3DCB0}
   .alert-more{font-size:11.5px;color:var(--faint);padding:2px 4px}
 
-  .ai-card{border-color:#D8E0F5;background:linear-gradient(180deg,#F7F9FF,#FFFFFF)}
-  .ai-card h3{color:var(--primary)}
-  .ai-card .lead{font-size:13px;color:var(--muted);margin:0 0 14px;line-height:1.55}
+  .summary-banner{background:linear-gradient(135deg,var(--primary),#3B4FB0);color:#fff;border-radius:var(--radius);
+    padding:16px 20px;margin-bottom:18px;font-size:14px;line-height:1.6;box-shadow:var(--shadow)}
+  .summary-banner b{font-weight:800}
+  .summary-banner .sb-empty{opacity:.85}
+
+  .priority-card{border-color:#FBE4C6;background:linear-gradient(180deg,#FFFAF3,#FFFFFF)}
+  .priority-card h3{color:#B5720F}
+  .priority-card .lead{font-size:13px;color:var(--muted);margin:0 0 14px;line-height:1.55}
+  .prio-list{display:flex;flex-direction:column;gap:7px}
+  .prio-item{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+  .prio-rank{flex:none;width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;font-size:11px;font-weight:800;
+    display:flex;align-items:center;justify-content:center}
+  .prio-item.rk1 .prio-rank,.prio-item.rk2 .prio-rank,.prio-item.rk3 .prio-rank{background:#B5720F}
+  .prio-body{flex:1;min-width:0}
+  .prio-main{font-size:12.5px;color:var(--ink);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+  .prio-main .ai-forn{color:var(--muted);font-weight:600;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
+  .prio-sub{font-size:11.5px;color:var(--faint);margin-top:2px}
+  .prio-score{flex:none;font-size:11px;font-weight:800;color:#B5720F;background:#FDF1DA;border-radius:999px;padding:3px 9px}
+  .prio-empty{font-size:13px;color:var(--ok);font-weight:700}
+
+  .dup-list{display:flex;flex-direction:column;gap:6px}
+  .dup-item{border-radius:8px;padding:8px 12px;background:#F3F0FD;border-left:3px solid #7147b8}
+  .dup-item .ai-main{font-size:12.5px;color:var(--ink);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+  .dup-item .ai-sub{font-size:11.5px;color:var(--faint);margin-top:2px}
+  .dup-item .ai-badge{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;background:#fff;border:1px solid #DCD3F5;color:#7147b8}
+
+  .alert-cfg{margin-top:16px}
+  .alert-cfg .srcbox{margin-top:8px}
+  .alert-cfg input{width:80px;flex:none !important}
+
   .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
   .btn.primary:hover{opacity:.9;color:#fff}
   .btn:disabled{opacity:.55;cursor:not-allowed}
-  .ai-output{margin-top:14px;font-size:13.5px;line-height:1.65;color:var(--ink)}
-  .ai-output p{margin:0 0 10px}
-  .ai-output p:last-child{margin-bottom:0}
-  .ai-output strong{color:var(--primary)}
-  .ai-output .ai-empty{color:var(--faint);font-size:13px}
-  .ai-output .ai-err{color:#B23A3A;font-size:13px;background:#FDF1F1;border-radius:8px;padding:10px 12px}
-  .ai-loading{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:13px;padding:6px 0}
-  .ai-loading .spin2{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--primary);animation:sp 0.8s linear infinite}
   table{width:100%;border-collapse:collapse;font-size:13px}
   th{text-align:left;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:0 10px 11px;border-bottom:1px solid var(--line)}
   th.r,td.r{text-align:right}
@@ -208,6 +227,8 @@
     </details>
   </div>
 
+  <div class="summary-banner" id="summaryBanner"></div>
+
   <div class="kpis" id="kpis"></div>
 
   <div class="pipe">
@@ -235,22 +256,10 @@
     <div class="bars" id="aprovBars"></div>
   </div>
 
-  <div class="cc-card ai-card">
-    <div class="htop"><h3>🤖 Análise inteligente (IA)</h3><span class="hint" id="aiHint"></span></div>
-    <p class="lead">Pede pra Claude ler o resumo dos dados atuais (contagens, valores e os alertas já calculados) e devolver, em português, os pontos mais importantes e o que priorizar hoje.</p>
-    <details class="src">
-      <summary>⚙ Configurar servidor de IA</summary>
-      <div class="srcpanel">
-        <div class="srcbox">
-          <input id="aiEndpoint" spellcheck="false" placeholder="URL do servidor de IA (ex: https://seu-app.up.railway.app)">
-          <input id="aiToken" class="nmw" type="password" spellcheck="false" placeholder="Token (se configurado)">
-          <button class="btn" id="aiSaveCfgBtn">Salvar</button>
-        </div>
-        <div class="srchint">O painel não guarda nenhuma chave da Anthropic — ele chama o seu próprio servidor (deploy no Railway), que guarda a chave em segredo e faz a chamada por trás. Veja o pacote <code>ai-proxy-server</code> com o código pronto pra subir.</div>
-      </div>
-    </details>
-    <button class="btn primary" id="aiRunBtn">✨ Gerar análise agora</button>
-    <div class="ai-output" id="aiOutput"><span class="ai-empty">Configure o servidor acima e clique em “Gerar análise agora” para pedir a leitura da IA sobre os dados atuais.</span></div>
+  <div class="cc-card priority-card">
+    <div class="htop"><h3>🎯 Prioridades de hoje</h3><span class="hint" id="prioHint"></span></div>
+    <p class="lead" id="prioLead"></p>
+    <div class="prio-list" id="prioList"></div>
   </div>
 
   <div class="cc-card alert-card">
@@ -265,6 +274,24 @@
       <p class="lead" id="alertAgeLead"></p>
       <div class="alert-list" id="alertAgeList"></div>
     </div>
+    <div class="alert-sec">
+      <h4>🔁 Possíveis duplicidades</h4>
+      <p class="lead" id="alertDupLead"></p>
+      <div class="dup-list" id="alertDupList"></div>
+    </div>
+    <details class="src alert-cfg">
+      <summary>⚙ Ajustar sensibilidade</summary>
+      <div class="srcpanel">
+        <div class="srcbox">
+          <label style="font-size:12px;color:var(--muted);align-self:center">Parada a partir de</label>
+          <input id="cfgStuckDays" type="number" min="1" value="15"><label style="font-size:12px;color:var(--muted);align-self:center">dias</label>
+          <label style="font-size:12px;color:var(--muted);align-self:center;margin-left:10px">Valor fora do padrão a partir de</label>
+          <input id="cfgOutlierMult" type="number" min="1.5" step="0.5" value="3"><label style="font-size:12px;color:var(--muted);align-self:center">x a média</label>
+          <button class="btn" id="cfgSaveBtn">Salvar</button>
+        </div>
+        <div class="srchint">Esses limites controlam quando uma nota vira alerta nas seções acima e no ranking de prioridades. Ajuste conforme o volume normal da sua operação.</div>
+      </div>
+    </details>
   </div>
 
   <div class="cc-card"><div class="htop"><h3>Resumo por departamento</h3><span class="hint" id="ccHint"></span></div>
@@ -646,7 +673,7 @@ function renderAlerts(D){
   if(withVal.length>=5){
     const mean=sum(withVal,d=>d.valor)/withVal.length;
     const variance=withVal.reduce((a,d)=>a+Math.pow(d.valor-mean,2),0)/withVal.length;
-    const thresh=Math.max(mean+2*Math.sqrt(variance),mean*3);
+    const thresh=Math.max(mean+2*Math.sqrt(variance),mean*ALERT_CFG.outlierMult);
     outliers=withVal.filter(d=>d.valor>thresh).sort((a,b)=>b.valor-a.valor);
     if(outliers.length){
       valLead.innerHTML=`<b>${outliers.length}</b> nota(s) com valor muito acima da média (${brl(mean)}) — vale conferir se não é erro de digitação ou duplicidade.`;
@@ -662,11 +689,11 @@ function renderAlerts(D){
   const now=new Date();
   const ageLead=document.getElementById("alertAgeLead"),ageList=document.getElementById("alertAgeList");
   const stuck=D.filter(d=>d.status!=="OK"&&d.status!=="CANCELADA"&&d.data instanceof Date)
-    .map(d=>({...d,dias:daysBetween(d.data,now)})).filter(d=>d.dias>=15).sort((a,b)=>b.dias-a.dias);
+    .map(d=>({...d,dias:daysBetween(d.data,now)})).filter(d=>d.dias>=ALERT_CFG.stuckDays).sort((a,b)=>b.dias-a.dias);
   if(stuck.length){
-    const crit=stuck.filter(d=>d.dias>=30).length;
-    ageLead.innerHTML=`<b>${stuck.length}</b> nota(s) parada(s) há 15 dias ou mais`+(crit?` — <b>${crit}</b> delas há mais de 30 dias.`:".");
-    ageList.innerHTML=stuck.slice(0,8).map(d=>alertItem(d,d.dias>=30?"sev-crit":"sev-warn",`${d.dias} dias parada`,stCfg(d.status).label))
+    const crit=stuck.filter(d=>d.dias>=ALERT_CFG.stuckDays*2).length;
+    ageLead.innerHTML=`<b>${stuck.length}</b> nota(s) parada(s) há ${ALERT_CFG.stuckDays} dias ou mais`+(crit?` — <b>${crit}</b> delas há mais de ${ALERT_CFG.stuckDays*2} dias.`:".");
+    ageList.innerHTML=stuck.slice(0,8).map(d=>alertItem(d,d.dias>=ALERT_CFG.stuckDays*2?"sev-crit":"sev-warn",`${d.dias} dias parada`,stCfg(d.status).label))
       .join("")+(stuck.length>8?`<div class="alert-more">+${stuck.length-8} outra(s)</div>`:"");
   }else{
     const semData=D.filter(d=>d.status!=="OK"&&d.status!=="CANCELADA"&&!(d.data instanceof Date)).length;
@@ -675,7 +702,28 @@ function renderAlerts(D){
       :`<span class="ok-msg">✓ Nenhuma nota pendente há muito tempo.</span>`;
     ageList.innerHTML="";
   }
-  const n=outliers.length+stuck.length;
+  // 3) possíveis duplicidades (mesmo fornecedor + mesmo valor)
+  const dupLead=document.getElementById("alertDupLead"),dupList=document.getElementById("alertDupList");
+  const withKey=D.filter(d=>d.forn&&d.valor>0);
+  const byKey={};
+  withKey.forEach(d=>{const k=d.forn.toUpperCase()+"|"+d.valor.toFixed(2);(byKey[k]=byKey[k]||[]).push(d);});
+  const dupGroups=Object.values(byKey).filter(g=>g.length>=2).sort((a,b)=>(b.length*b[0].valor)-(a.length*a[0].valor));
+  if(dupGroups.length){
+    const totalDup=dupGroups.reduce((a,g)=>a+g.length,0);
+    dupLead.innerHTML=`<b>${dupGroups.length}</b> grupo(s) de notas com o mesmo fornecedor e o mesmo valor (${totalDup} nota(s) ao todo) — pode ser lançamento duplicado.`;
+    dupList.innerHTML=dupGroups.slice(0,6).map(g=>{
+      const d=g[0];
+      const nums=g.map(x=>x.num?"NF "+x.num:"nota").join(", ");
+      return`<div class="dup-item">
+        <div class="ai-main"><b>${d.forn}</b></div>
+        <div class="ai-sub">${brl(d.valor)} · ${g.length}x · ${nums} <span class="ai-badge">conferir</span></div>
+      </div>`;
+    }).join("")+(dupGroups.length>6?`<div class="alert-more">+${dupGroups.length-6} outro(s) grupo(s)</div>`:"");
+  }else{
+    dupLead.innerHTML=`<span class="ok-msg">✓ Nenhuma duplicidade aparente identificada.</span>`;
+    dupList.innerHTML="";
+  }
+  const n=outliers.length+stuck.length+dupGroups.reduce((a,g)=>a+g.length,0);
   document.getElementById("alertHint").textContent=n?`${n} alerta(s)`:"tudo certo";
   LAST_OUTLIERS=outliers;LAST_STUCK=stuck;
 }
@@ -698,61 +746,70 @@ function syncCCfilter(){
   if(cur!=="__all"&&ccs.includes(cur))sel.value=cur;else ccFilter="__all";
 }
 
-// ─── Análise inteligente (IA) ───────────────────────────────────────────────
-const AI_CFG_STORE="nf_dashboard_ai_cfg";
-function loadAiCfg(){try{const raw=localStorage.getItem(AI_CFG_STORE);if(raw)return JSON.parse(raw);}catch(e){}return{endpoint:"",token:""};}
-function saveAiCfg(cfg){try{localStorage.setItem(AI_CFG_STORE,JSON.stringify(cfg));}catch(e){}}
-function buildAiSummary(D){
-  const total=D.length,totVal=sum(D,d=>d.valor);
-  const byStatus=groupBy(D,"status").map(g=>`${g.key}: ${g.arr.length} nota(s), ${brl(sum(g.arr,d=>d.valor))}`).join("; ");
-  const byDep=groupBy(D,"dep").sort((a,b)=>val(b.arr)-val(a.arr)).slice(0,10)
-    .map(g=>`${g.key}: ${g.arr.length} nota(s), ${brl(sum(g.arr,d=>d.valor))}`).join("; ");
-  const pendPedido=D.filter(d=>d.status==="PENDENTE DE PEDIDO");
-  const pendAprov=D.filter(d=>d.status==="APROVAÇÃO");
-  const L=[];
-  L.push(`Total na seleção atual: ${total} nota(s), somando ${brl(totVal)}.`);
-  L.push(`Por status: ${byStatus||"—"}.`);
-  L.push(`Top departamentos por valor: ${byDep||"—"}.`);
-  L.push(`Sem pedido criado (status PENDENTE DE PEDIDO): ${pendPedido.length} nota(s), ${brl(sum(pendPedido,d=>d.valor))}.`);
-  L.push(`Aguardando aprovação: ${pendAprov.length} nota(s), ${brl(sum(pendAprov,d=>d.valor))}.`);
-  L.push(LAST_OUTLIERS.length
-    ?`Valores fora do padrão (${LAST_OUTLIERS.length}): `+LAST_OUTLIERS.slice(0,10).map(d=>`NF ${d.num||"?"} (${d.dep}, ${brl(d.valor)}${d.forn?", fornecedor "+d.forn:""})`).join("; ")+"."
-    :"Nenhum valor fora do padrão detectado.");
-  L.push(LAST_STUCK.length
-    ?`Notas paradas há 15+ dias (${LAST_STUCK.length}): `+LAST_STUCK.slice(0,10).map(d=>`NF ${d.num||"?"} (${d.dep}, ${d.dias} dia(s), status ${d.status})`).join("; ")+"."
-    :"Nenhuma nota parada há muito tempo.");
-  return L.join("\n");
+// ─── Sensibilidade dos alertas (ajustável pelo usuário) ────────────────────
+const ALERT_CFG_STORE="nf_dashboard_alert_cfg";
+function loadAlertCfg(){try{const raw=localStorage.getItem(ALERT_CFG_STORE);if(raw)return JSON.parse(raw);}catch(e){}return{stuckDays:15,outlierMult:3};}
+function saveAlertCfg(cfg){try{localStorage.setItem(ALERT_CFG_STORE,JSON.stringify(cfg));}catch(e){}}
+let ALERT_CFG=loadAlertCfg();
+
+// ─── Resumo automático do dia (regras, sem IA) ──────────────────────────────
+function renderSummaryBanner(D){
+  const el=document.getElementById("summaryBanner");
+  const pend=D.filter(d=>PENDING.has(d.status));
+  if(!pend.length){el.innerHTML=`<span class="sb-empty">✓ Nenhuma nota pendente na seleção atual — tudo concluído.</span>`;return;}
+  const pendVal=sum(pend,d=>d.valor);
+  const byDep=groupBy(pend,"dep").sort((a,b)=>val(b.arr)-val(a.arr));
+  const topDep=byDep[0];
+  const nAlerts=LAST_OUTLIERS.length+LAST_STUCK.length;
+  const parts=[];
+  parts.push(`<b>${pend.length}</b> nota(s) pendente(s), somando <b>${brl(pendVal)}</b>.`);
+  if(topDep)parts.push(`<b>${topDep.key}</b> é quem mais tem pendência agora (${topDep.arr.length} nota(s), ${brl(sum(topDep.arr,d=>d.valor))}).`);
+  parts.push(nAlerts?`<b>${nAlerts}</b> alerta(s) automático(s) precisam de atenção — veja “Prioridades de hoje” abaixo.`:"Nenhum alerta automático no momento.");
+  el.innerHTML=parts.join(" ");
 }
-async function runAiAnalysis(){
-  const out=document.getElementById("aiOutput"),btn=document.getElementById("aiRunBtn");
-  const cfg=loadAiCfg();
-  const endpoint=(cfg.endpoint||"").trim().replace(/\/+$/,"");
-  if(!endpoint){out.innerHTML=`<div class="ai-err">Configure a URL do seu servidor de IA em “⚙ Configurar servidor de IA” antes de gerar a análise. Veja o pacote <code>ai-proxy-server</code> para subir o seu no Railway.</div>`;return;}
-  btn.disabled=true;
-  out.innerHTML=`<div class="ai-loading"><span class="spin2"></span>Consultando a IA…</div>`;
-  const summary=buildAiSummary(rows());
-  try{
-    const headers={"content-type":"application/json"};
-    if(cfg.token)headers["x-panel-token"]=cfg.token;
-    const res=await fetch(endpoint+"/api/ai-analysis",{method:"POST",headers,body:JSON.stringify({summary})});
-    let data=null;try{data=await res.json();}catch(e){}
-    if(!res.ok){
-      const msg=(data&&data.error)||`Erro ${res.status} ao consultar o servidor de IA.`;
-      throw new Error(msg);
-    }
-    const text=((data&&data.text)||"").trim();
-    out.innerHTML=text?text.split(/\n{2,}/).map(p=>`<p>${p.replace(/</g,"&lt;").replace(/\n/g,"<br>")}</p>`).join(""):`<span class="ai-empty">A IA não retornou texto.</span>`;
-  }catch(e){
-    out.innerHTML=`<div class="ai-err">Não foi possível concluir a análise: ${((e&&e.message)||e).toString().replace(/</g,"&lt;")}<br>Confira a URL do servidor, o token e sua conexão.</div>`;
-  }finally{
-    btn.disabled=false;
+
+// ─── Prioridades de hoje (ranking por regra, sem IA) ────────────────────────
+function renderPriorities(D){
+  const lead=document.getElementById("prioLead"),list=document.getElementById("prioList"),hint=document.getElementById("prioHint");
+  const withVal=D.filter(d=>d.valor>0);
+  const mean=withVal.length?sum(withVal,d=>d.valor)/withVal.length:0;
+  const acted=D.filter(d=>d.status!=="OK"&&d.status!=="CANCELADA");
+  const scored=acted.map(d=>{
+    const dias=(d.data instanceof Date)?daysBetween(d.data,new Date()):0;
+    const mult=mean>0?d.valor/mean:0;
+    const score=Math.min(dias/10,6)+Math.min(mult,5)*0.8+Math.min(mult,3)*0.3;
+    return{...d,dias,mult,score};
+  }).filter(d=>d.score>0.3).sort((a,b)=>b.score-a.score);
+  if(!scored.length){
+    lead.textContent="";hint.textContent="tudo em dia";
+    list.innerHTML=`<div class="prio-empty">✓ Nenhuma nota com urgência clara no momento.</div>`;
+    return;
   }
+  const top=scored.slice(0,8);
+  lead.textContent=`Ranking combinando tempo parado e valor — o que resolver primeiro, calculado a partir dos próprios dados (sem IA).`;
+  hint.textContent=`${scored.length} nota(s) com prioridade`;
+  list.innerHTML=top.map((d,i)=>{
+    const why=[];
+    if(d.dias>=ALERT_CFG.stuckDays)why.push(`${d.dias} dias parada`);
+    if(d.mult>=ALERT_CFG.outlierMult)why.push(`${d.mult.toFixed(1)}x a média`);
+    if(!why.length)why.push(d.dias?`${d.dias} dia(s) parada`:"valor relevante");
+    const tag=d.num?`<b>NF ${d.num}</b>`:"<b>Nota</b>";
+    const forn=d.forn?`<span class="ai-forn" title="${d.forn}">${d.forn}</span>`:"";
+    return`<div class="prio-item ${i<3?"rk"+(i+1):""}">
+      <div class="prio-rank">${i+1}</div>
+      <div class="prio-body">
+        <div class="prio-main">${tag}${forn}</div>
+        <div class="prio-sub">${d.dep} · ${stCfg(d.status).label} · ${brl(d.valor)} · ${why.join(" · ")}</div>
+      </div>
+      <div class="prio-score">score ${d.score.toFixed(1)}</div>
+    </div>`;
+  }).join("");
 }
 
 function render(){
   syncCCfilter();
   const D=rows();
-  renderKpis(D);renderFlow(D);renderDonut(D);renderPedido(D);renderFormalizar(D);renderAprovacao(D);renderAlerts(D);renderCC(D);
+  renderKpis(D);renderFlow(D);renderDonut(D);renderPedido(D);renderFormalizar(D);renderAprovacao(D);renderAlerts(D);renderPriorities(D);renderSummaryBanner(D);renderCC(D);
   const nm=(SOURCES[activeIdx]&&SOURCES[activeIdx].name)||"planilha";
   document.getElementById("foot").innerHTML=LIVE
     ?`Conectado à planilha <b>“${nm}”</b> · valores em reais (BRL) · recarrega a cada 5 min.`
@@ -807,15 +864,15 @@ document.getElementById("srcList").addEventListener("click",e=>{
   if(u!=null)selectSource(parseInt(u,10));
   if(r!=null)removeSource(parseInt(r,10));
 });
-(function initAiCfg(){
-  const cfg=loadAiCfg();
-  document.getElementById("aiEndpoint").value=cfg.endpoint||"";
-  document.getElementById("aiToken").value=cfg.token||"";
+(function initAlertCfg(){
+  document.getElementById("cfgStuckDays").value=ALERT_CFG.stuckDays;
+  document.getElementById("cfgOutlierMult").value=ALERT_CFG.outlierMult;
 })();
-document.getElementById("aiSaveCfgBtn").addEventListener("click",()=>{
-  saveAiCfg({endpoint:document.getElementById("aiEndpoint").value.trim(),token:document.getElementById("aiToken").value.trim()});
+document.getElementById("cfgSaveBtn").addEventListener("click",()=>{
+  const days=Math.max(1,parseInt(document.getElementById("cfgStuckDays").value,10)||15);
+  const mult=Math.max(1.5,parseFloat(document.getElementById("cfgOutlierMult").value)||3);
+  ALERT_CFG={stuckDays:days,outlierMult:mult};saveAlertCfg(ALERT_CFG);render();
 });
-document.getElementById("aiRunBtn").addEventListener("click",runAiAnalysis);
 
 renderSourceUI();
 render();      // mostra algo na hora (snapshot)
