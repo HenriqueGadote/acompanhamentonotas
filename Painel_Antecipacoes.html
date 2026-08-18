@@ -564,7 +564,9 @@ buildBankSel();if(!fromMem)stamp();render();
 
 // ─── Sincronização online (Apps Script) ─────────────────────────────────────
 const SYNC_KEY='antecip2026SyncCfg';
-function loadSyncCfg(){try{const raw=localStorage.getItem(SYNC_KEY);if(raw)return JSON.parse(raw);}catch(e){}return{url:'',token:''};}
+const DEFAULT_SYNC_URL='https://script.google.com/macros/s/AKfycbzvZWnAxfNoHV1TrBFhJSA0sHZe2hkcNYKZ-PhSGA1mqj5pbuZoBFi0WB3N0CI6UFOW/exec';
+const DEFAULT_SYNC_TOKEN='Dpf2o7uF3w7U6kxvZPQHf7OWHtzfIkls';
+function loadSyncCfg(){try{const raw=localStorage.getItem(SYNC_KEY);if(raw)return JSON.parse(raw);}catch(e){}return{url:DEFAULT_SYNC_URL,token:DEFAULT_SYNC_TOKEN};}
 function saveSyncCfg(cfg){try{localStorage.setItem(SYNC_KEY,JSON.stringify(cfg));}catch(e){}}
 function syncStatus(kind,msg){
   const el=document.getElementById('sync-status');
