@@ -267,11 +267,6 @@
   <div class="cc-card alert-card">
     <div class="htop"><h3>🔎 Alertas automáticos</h3><span class="hint" id="alertHint"></span></div>
     <div class="alert-sec">
-      <h4>💰 Valores fora do padrão</h4>
-      <p class="lead" id="alertValLead"></p>
-      <div class="alert-list" id="alertValList"></div>
-    </div>
-    <div class="alert-sec">
       <h4>⏱ Paradas há muito tempo</h4>
       <p class="lead" id="alertAgeLead"></p>
       <div class="alert-list" id="alertAgeList"></div>
@@ -287,11 +282,11 @@
         <div class="srcbox">
           <label style="font-size:12px;color:var(--muted);align-self:center">Parada a partir de</label>
           <input id="cfgStuckDays" type="number" min="1" value="15"><label style="font-size:12px;color:var(--muted);align-self:center">dias</label>
-          <label style="font-size:12px;color:var(--muted);align-self:center;margin-left:10px">Valor fora do padrão a partir de</label>
+          <label style="font-size:12px;color:var(--muted);align-self:center;margin-left:10px">Valor de destaque a partir de</label>
           <input id="cfgOutlierMult" type="number" min="1.5" step="0.5" value="3"><label style="font-size:12px;color:var(--muted);align-self:center">x a média</label>
           <button class="btn" id="cfgSaveBtn">Salvar</button>
         </div>
-        <div class="srchint">Esses limites controlam quando uma nota vira alerta nas seções acima e no ranking de prioridades. Ajuste conforme o volume normal da sua operação.</div>
+        <div class="srchint">Esses limites controlam quando uma nota vira alerta acima e o quanto pesa no ranking de "Prioridades de hoje". Ajuste conforme o volume normal da sua operação.</div>
       </div>
     </details>
   </div>
@@ -309,6 +304,7 @@
 <script>
 // ─── Fontes: sua(s) planilha(s) ─────────────────────────────────────────────
 const DEFAULT_SOURCES=[
+  {name:"Agosto",id:"1dUQOqPpL5LfmbcL4IcgQJeqI_YpJnSphHxa3AYS97oc",gid:"0"},
   {name:"Julho",id:"1CFijdnbbqC7CICStN5yuz-3dJE1K3ivcVCSbbg2dVv0",gid:"0"},
   {name:"Junho",id:"19GA0iOD2ZUmIm0--FtQKMn1hq2Xom0u0vnapDzxqRJA",gid:"2119804207"}
 ];
@@ -402,7 +398,7 @@ const PED_LABEL={"DIRETA":"Compra direta","SIM":"Com pedido","TARGET":"Target","
 const PENDING={has:s=>s!=="OK"}; // pendente = tudo que ainda não foi concluído
 
 let DATA=SNAPSHOT.slice(), LIVE=false, metric="qtd", ccFilter="__all", periodFilter="__all";
-let LAST_OUTLIERS=[], LAST_STUCK=[];
+let LAST_STUCK=[];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const brl=v=>v.toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2});
@@ -674,26 +670,7 @@ function alertItem(d,sev,badgeText,subExtra){
   </div>`;
 }
 function renderAlerts(D){
-  // 1) valores muito acima da média (possível erro de lançamento/duplicidade)
-  const withVal=D.filter(d=>d.valor>0);
-  const valLead=document.getElementById("alertValLead"),valList=document.getElementById("alertValList");
-  let outliers=[];
-  if(withVal.length>=5){
-    const mean=sum(withVal,d=>d.valor)/withVal.length;
-    const variance=withVal.reduce((a,d)=>a+Math.pow(d.valor-mean,2),0)/withVal.length;
-    const thresh=Math.max(mean+2*Math.sqrt(variance),mean*ALERT_CFG.outlierMult);
-    outliers=withVal.filter(d=>d.valor>thresh).sort((a,b)=>b.valor-a.valor);
-    if(outliers.length){
-      valLead.innerHTML=`<b>${outliers.length}</b> nota(s) com valor muito acima da média (${brl(mean)}) — vale conferir se não é erro de digitação ou duplicidade.`;
-      valList.innerHTML=outliers.slice(0,8).map(d=>alertItem(d,"sev-crit",`${(d.valor/mean).toFixed(1)}x a média`,brl(d.valor)))
-        .join("")+(outliers.length>8?`<div class="alert-more">+${outliers.length-8} outra(s)</div>`:"");
-    }else{
-      valLead.innerHTML=`<span class="ok-msg">✓ Nenhum valor fora do padrão identificado.</span>`;valList.innerHTML="";
-    }
-  }else{
-    valLead.innerHTML=`<span class="ok-msg">Poucas notas na seleção para calcular um padrão de valor.</span>`;valList.innerHTML="";
-  }
-  // 2) notas paradas há muito tempo (pendentes, com data de emissão disponível)
+  // 1) notas paradas há muito tempo (pendentes, com data de emissão disponível)
   const now=new Date();
   const ageLead=document.getElementById("alertAgeLead"),ageList=document.getElementById("alertAgeList");
   const stuck=D.filter(d=>d.status!=="OK"&&d.status!=="CANCELADA"&&d.data instanceof Date)
@@ -710,7 +687,7 @@ function renderAlerts(D){
       :`<span class="ok-msg">✓ Nenhuma nota pendente há muito tempo.</span>`;
     ageList.innerHTML="";
   }
-  // 3) possíveis duplicidades (mesmo fornecedor + mesmo valor)
+  // 2) possíveis duplicidades (mesmo fornecedor + mesmo valor)
   const dupLead=document.getElementById("alertDupLead"),dupList=document.getElementById("alertDupList");
   const withKey=D.filter(d=>d.forn&&d.valor>0);
   const byKey={};
@@ -731,9 +708,9 @@ function renderAlerts(D){
     dupLead.innerHTML=`<span class="ok-msg">✓ Nenhuma duplicidade aparente identificada.</span>`;
     dupList.innerHTML="";
   }
-  const n=outliers.length+stuck.length+dupGroups.reduce((a,g)=>a+g.length,0);
+  const n=stuck.length+dupGroups.reduce((a,g)=>a+g.length,0);
   document.getElementById("alertHint").textContent=n?`${n} alerta(s)`:"tudo certo";
-  LAST_OUTLIERS=outliers;LAST_STUCK=stuck;
+  LAST_STUCK=stuck;
 }
 function renderCC(D){
   document.getElementById("ccHint").textContent=ccFilter==="__all"?"todos os departamentos":"filtro (centro de custo): "+ccFilter;
@@ -774,7 +751,7 @@ function renderSummaryBanner(D){
   const pendVal=sum(pend,d=>d.valor);
   const byDep=groupBy(pend,"dep").sort((a,b)=>val(b.arr)-val(a.arr));
   const topDep=byDep[0];
-  const nAlerts=LAST_OUTLIERS.length+LAST_STUCK.length;
+  const nAlerts=LAST_STUCK.length;
   const parts=[];
   parts.push(`<b>${pend.length}</b> nota(s) pendente(s), somando <b>${brl(pendVal)}</b>.`);
   if(topDep)parts.push(`<b>${topDep.key}</b> é quem mais tem pendência agora (${topDep.arr.length} nota(s), ${brl(sum(topDep.arr,d=>d.valor))}).`);
