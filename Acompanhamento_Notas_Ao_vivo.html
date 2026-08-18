@@ -203,6 +203,8 @@
     <div class="controls">
       <div class="ctrl"><label>Planilha</label>
         <select id="sourceSel"></select></div>
+      <div class="ctrl"><label>Período</label>
+        <select id="periodFilter"><option value="__all">Todos</option></select></div>
       <div class="ctrl"><label>Centro de custo</label>
         <select id="ccFilter"><option value="__all">Todos</option></select></div>
       <div class="ctrl"><label>Exibir por</label>
@@ -222,7 +224,7 @@
           <button class="btn" id="srcAddBtn">+ Adicionar</button>
         </div>
         <div class="srclist" id="srcList"></div>
-        <div class="srchint">Cole o link normal da planilha (o da barra de endereço, com <code>/edit#gid=...</code>) — não precisa publicar como CSV. Cada planilha vira uma opção no seletor “Planilha” acima.</div>
+        <div class="srchint">Cole o link normal da planilha (o da barra de endereço, com <code>/edit#gid=...</code>) — não precisa publicar como CSV. Cada planilha vira uma opção no seletor "Planilha" acima. <b>Dica:</b> em vez de criar uma planilha nova a cada mês, use uma só o ano inteiro (ou por semestre) e deixe o filtro "Período" ao lado fazer o recorte por mês — assim o time não precisa ficar trocando link.</div>
       </div>
     </details>
   </div>
@@ -399,7 +401,7 @@ const PED_COLOR={"DIRETA":"#243A8E","SIM":"#2E74D6","TARGET":"#5B6B9E","NSC":"#7
 const PED_LABEL={"DIRETA":"Compra direta","SIM":"Com pedido","TARGET":"Target","NSC":"NSC","FORMALIZAR":"A formalizar (pendente)","*":"Sem classificação"};
 const PENDING={has:s=>s!=="OK"}; // pendente = tudo que ainda não foi concluído
 
-let DATA=SNAPSHOT.slice(), LIVE=false, metric="qtd", ccFilter="__all";
+let DATA=SNAPSHOT.slice(), LIVE=false, metric="qtd", ccFilter="__all", periodFilter="__all";
 let LAST_OUTLIERS=[], LAST_STUCK=[];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -411,7 +413,13 @@ const norm=s=>(s==null?"":s.toString()).normalize("NFD").replace(/[\u0300-\u036f
 function num(c){if(c==null)return 0;if(typeof c==="number")return c;let s=String(c).replace(/[^\d,.-]/g,"");
   if(s.includes(",")&&s.includes("."))s=s.replace(/\./g,"").replace(",",".");else if(s.includes(","))s=s.replace(",",".");
   return parseFloat(s)||0;}
-const rows=()=>ccFilter==="__all"?DATA:DATA.filter(d=>d.cc===ccFilter);
+function periodKey(d){return d instanceof Date?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`:null;}
+function periodLabel(key){
+  const[y,m]=key.split("-");
+  const nomes=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  return `${nomes[+m-1]} de ${y}`;
+}
+const rows=()=>DATA.filter(d=>(ccFilter==="__all"||d.cc===ccFilter)&&(periodFilter==="__all"||periodKey(d.data)===periodFilter));
 const val=a=>metric==="qtd"?a.length:sum(a,d=>d.valor);
 const fmt=n=>metric==="qtd"?n.toLocaleString("pt-BR"):brlShort(n);
 
@@ -745,6 +753,12 @@ function syncCCfilter(){
   sel.innerHTML='<option value="__all">Todos</option>'+ccs.map(c=>`<option value="${c}">${c}</option>`).join("");
   if(cur!=="__all"&&ccs.includes(cur))sel.value=cur;else ccFilter="__all";
 }
+function syncPeriodFilter(){
+  const sel=document.getElementById("periodFilter"),cur=periodFilter;
+  const keys=[...new Set(DATA.map(d=>periodKey(d.data)).filter(Boolean))].sort().reverse();
+  sel.innerHTML='<option value="__all">Todos</option>'+keys.map(k=>`<option value="${k}">${periodLabel(k)}</option>`).join("");
+  if(cur!=="__all"&&keys.includes(cur))sel.value=cur;else periodFilter="__all";
+}
 
 // ─── Sensibilidade dos alertas (ajustável pelo usuário) ────────────────────
 const ALERT_CFG_STORE="nf_dashboard_alert_cfg";
@@ -807,7 +821,7 @@ function renderPriorities(D){
 }
 
 function render(){
-  syncCCfilter();
+  syncCCfilter();syncPeriodFilter();
   const D=rows();
   renderKpis(D);renderFlow(D);renderDonut(D);renderPedido(D);renderFormalizar(D);renderAprovacao(D);renderAlerts(D);renderPriorities(D);renderSummaryBanner(D);renderCC(D);
   const nm=(SOURCES[activeIdx]&&SOURCES[activeIdx].name)||"planilha";
@@ -852,6 +866,7 @@ function removeSource(i){
 
 // ─── Eventos ─────────────────────────────────────────────────────────────────
 document.getElementById("ccFilter").addEventListener("change",e=>{ccFilter=e.target.value;render();});
+document.getElementById("periodFilter").addEventListener("change",e=>{periodFilter=e.target.value;render();});
 document.querySelectorAll("#metricSeg button").forEach(b=>b.addEventListener("click",()=>{
   document.querySelectorAll("#metricSeg button").forEach(x=>x.classList.remove("on"));
   b.classList.add("on");metric=b.dataset.m;render();}));
