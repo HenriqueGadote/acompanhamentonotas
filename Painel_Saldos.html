@@ -496,7 +496,9 @@ else { window.__D=DATA; render(DATA); setSource('embutidos'); }
 
 // ─── Sincronização online (Apps Script) ─────────────────────────────────────
 const SYNC_KEY='painelSaldosSyncCfg';
-function loadSyncCfg(){try{const raw=localStorage.getItem(SYNC_KEY);if(raw)return JSON.parse(raw);}catch(e){}return{url:'',token:''};}
+const DEFAULT_SYNC_URL='https://script.google.com/macros/s/AKfycbxQgyIP48OzHfzRf9VPibQR7NwiZKQygIHjoaY79OqCCdvfMDtbgtQyCsQiNCQk3HFAPg/exec';
+const DEFAULT_SYNC_TOKEN='tpipb8QSnPny0VfBCvL3Y3xwDQWHkdiQ';
+function loadSyncCfg(){try{const raw=localStorage.getItem(SYNC_KEY);if(raw)return JSON.parse(raw);}catch(e){}return{url:DEFAULT_SYNC_URL,token:DEFAULT_SYNC_TOKEN};}
 function saveSyncCfg(cfg){try{localStorage.setItem(SYNC_KEY,JSON.stringify(cfg));}catch(e){}}
 function syncStatus(kind,msg){
   const el=document.getElementById('sync-status');
