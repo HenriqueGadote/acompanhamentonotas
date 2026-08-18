@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Antecipações 2026 — Painel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js"></script>
+<style>
+:root{
+  --bg:#F4F6F9; --surface:#FFFFFF; --ink:#11151E; --muted:#697287;
+  --line:#E6E9F0; --line-soft:#EEF1F6;
+  --bruto:#3A4DAF; --custo:#C2410C; --liquido:#0E8C6A;
+  --accent:#11151E; --chip:#EEF1F6;
+  --shadow:0 1px 2px rgba(16,22,38,.04),0 8px 24px -12px rgba(16,22,38,.10);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);
+  font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;
+  font-variant-numeric:tabular-nums;
+}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.wrap{max-width:1240px;margin:0 auto;padding:28px 24px 64px}
+
+/* ---------- header ---------- */
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:26px}
+.brand .eyebrow{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.brand h1{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:600;letter-spacing:-.02em;margin-top:4px}
+.brand h1 b{color:var(--liquido);font-weight:600}
+.updated{font-size:12px;color:var(--muted);margin-top:6px}
+.updated #ts{color:var(--ink);font-weight:500}
+.refresh{display:flex;align-items:center;gap:10px}
+.btn{
+  font-family:inherit;font-size:13px;font-weight:550;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);padding:10px 16px;border-radius:10px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:8px;box-shadow:var(--shadow);transition:.15s;
+}
+.btn:hover{border-color:#cfd5e0;transform:translateY(-1px)}
+details.sync{position:relative}
+details.sync>summary{list-style:none;cursor:pointer;font-size:11px;font-weight:600;color:var(--muted);padding:4px 0}
+details.sync>summary::-webkit-details-marker{display:none}
+.sync-box{position:absolute;right:0;top:100%;z-index:20;background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:14px;margin-top:6px;box-shadow:var(--shadow);text-align:left;min-width:340px}
+.sync-box input{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:12px;margin-bottom:8px;color:var(--ink)}
+.sync-box .row{display:flex;gap:8px}
+.sync-box .row input{flex:1}
+.sync-box .hint{font-size:11px;color:var(--muted);line-height:1.5;margin-top:6px}
+.pill-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+.pill-status.ok{background:#E5F5EF;color:#0E8C6A}
+.pill-status.err{background:#FBE9E7;color:#C2410C}
+.pill-status.wait{background:var(--chip);color:var(--muted)}
+.btn svg{width:15px;height:15px}
+.btn.solid{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* ---------- KPI hero ---------- */
+.hero{display:grid;grid-template-columns:1.35fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 20px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.kpi .label{font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.kpi .val{font-family:'Space Grotesk',sans-serif;font-size:30px;font-weight:600;letter-spacing:-.02em;margin-top:8px;line-height:1}
+.kpi .sub{font-size:12px;color:var(--muted);margin-top:8px}
+.kpi.feature{grid-row:span 1}
+.kpi.feature .val{font-size:46px}
+.kpi.feature .track{height:6px;border-radius:99px;background:var(--line-soft);margin-top:14px;overflow:hidden}
+.kpi.feature .track i{display:block;height:100%;background:linear-gradient(90deg,var(--custo),#E2761C);border-radius:99px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:1px}
+.kpi .val.liq{color:var(--liquido)} .kpi .val.cst{color:var(--custo)}
+
+/* ---------- filters ---------- */
+.filters{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:22px 0 16px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;background:var(--surface);padding:5px;border-radius:12px;border:1px solid var(--line);box-shadow:var(--shadow)}
+.chip{font-family:inherit;font-size:12.5px;font-weight:550;border:none;background:transparent;color:var(--muted);padding:7px 13px;border-radius:8px;cursor:pointer;transition:.12s}
+.chip:hover{color:var(--ink)}
+.chip.on{background:var(--ink);color:#fff}
+.fgrow{flex:1}
+select,input.search{font-family:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px;box-shadow:var(--shadow)}
+select{cursor:pointer;min-width:170px}
+input.search{min-width:200px}
+input.search::placeholder{color:var(--muted)}
+
+/* ---------- panels ---------- */
+.grid{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-bottom:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow)}
+.panel h3{font-size:13px;font-weight:600;letter-spacing:.02em;display:flex;align-items:center;justify-content:space-between}
+.panel h3 .hint{font-size:11px;font-weight:500;color:var(--muted)}
+.chartbox{position:relative;height:280px;margin-top:14px}
+.chartbox.sm{height:300px}
+
+/* ---------- table ---------- */
+.tablewrap{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.tablehead{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line-soft)}
+.tablehead h3{font-size:13px;font-weight:600}
+.tablehead .count{font-size:12px;color:var(--muted)}
+.scroll{overflow-x:auto;max-height:520px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{position:sticky;top:0;background:var(--surface);text-align:left;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:11px 16px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap;user-select:none}
+thead th.r{text-align:right}
+thead th .ar{opacity:.4;font-size:9px;margin-left:3px}
+thead th.act .ar{opacity:1}
+tbody td{padding:11px 16px;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:hover{background:#FAFBFD}
+tbody tr:last-child td{border-bottom:none}
+.tag{display:inline-flex;align-items:center;font-size:11.5px;font-weight:550;padding:3px 9px;border-radius:99px;background:var(--chip);color:#39414f}
+.pct{font-weight:550}
+.pct.hi{color:var(--custo)}
+.ratelegend{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.ratelegend span{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:500;color:var(--ink);background:var(--chip);border:1px solid var(--line);padding:5px 10px;border-radius:8px}
+.ratelegend i{width:11px;height:11px;border-radius:3px;display:inline-block;flex:none}
+.ratelegend i.dash{width:16px;height:0;border-radius:0;border-top:2px dashed var(--ink);background:none}
+.tfoot td{padding:13px 16px;font-weight:600;font-size:13px;background:#FBFCFE;border-top:1px solid var(--line)}
+
+/* drop overlay */
+#drop{position:fixed;inset:0;background:rgba(17,21,30,.78);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:50;color:#fff}
+#drop.on{display:flex}
+#drop .box{border:2px dashed rgba(255,255,255,.5);border-radius:18px;padding:48px 64px;text-align:center;font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:500}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 20px;border-radius:11px;font-size:13px;font-weight:500;box-shadow:0 10px 30px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:.25s;z-index:60}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:980px){
+  .hero{grid-template-columns:1fr 1fr}
+  .kpi.feature{grid-column:1 / -1}
+  .grid{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .wrap{padding:18px 14px 48px}
+  .hero{grid-template-columns:1fr}
+  .brand h1{font-size:23px}
+  .kpi .val{font-size:26px}.kpi.feature .val{font-size:38px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="eyebrow">Acompanhamento · Exercício 2026</div>
+      <h1>Antecipação de <b>recebíveis</b></h1>
+      <div class="updated">Atualizado em <span id="ts">—</span> · <span id="srcnote">dados embutidos da planilha</span><span id="restoreWrap" style="display:none"> · <a href="#" id="restoreBtn" style="color:var(--custo);font-weight:500;text-decoration:none">restaurar original</a></span></div>
+    </div>
+    <div class="refresh">
+      <div id="sync-status" style="margin-right:6px"></div>
+      <details class="sync">
+        <summary>⚙ Publicar/ler online</summary>
+        <div class="sync-box">
+          <input id="syncUrl" spellcheck="false" placeholder="URL do Apps Script (Web App)">
+          <div class="row">
+            <input id="syncToken" type="password" spellcheck="false" placeholder="Token (opcional)">
+            <button class="btn" id="syncSaveBtn" style="box-shadow:none;padding:8px 12px">Salvar</button>
+          </div>
+          <div class="hint">Configure uma vez (mesma URL para todo o time). Ao subir uma planilha, ela é publicada aqui automaticamente; ao abrir o painel, ele lê primeiro dessa fonte antes dos dados salvos localmente.</div>
+        </div>
+      </details>
+      <button class="btn" id="export">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Exportar CSV
+      </button>
+      <button class="btn" id="savehtml">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+        Salvar atualizado
+      </button>
+      <button class="btn solid" id="reload">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+        Atualizar planilha
+      </button>
+      <input type="file" id="file" accept=".xlsx,.xlsm" style="display:none">
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="kpi feature">
+      <div class="label">Custo efetivo do dinheiro</div>
+      <div class="val cst num" id="k-rate">—</div>
+      <div class="sub">despesas de antecipação sobre o valor bruto das faturas</div>
+      <div class="track"><i id="k-rate-bar" style="width:0%"></i></div>
+    </div>
+    <div class="kpi">
+      <div class="label"><span class="dot" style="background:var(--bruto)"></span>Volume bruto</div>
+      <div class="val num" id="k-bruto">—</div>
+      <div class="sub" id="k-ops">— operações</div>
+    </div>
+    <div class="kpi">
+      <div class="label"><span class="dot" style="background:var(--liquido)"></span>Líquido recebido</div>
+      <div class="val liq num" id="k-liq">—</div>
+      <div class="sub" id="k-ticket">ticket médio —</div>
+    </div>
+    <div class="kpi">
+      <div class="label"><span class="dot" style="background:var(--custo)"></span>Custo total</div>
+      <div class="val cst num" id="k-custo">—</div>
+      <div class="sub" id="k-banks">— instituições</div>
+    </div>
+  </section>
+
+  <div class="filters">
+    <div class="chips" id="months"></div>
+    <div class="fgrow"></div>
+    <select id="bankSel"><option value="">Todas as instituições</option></select>
+    <input class="search" id="search" placeholder="Buscar instituição…">
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h3>Evolução mensal <span class="hint">bruto · líquido · custo %</span></h3>
+      <div class="chartbox"><canvas id="chMonth"></canvas></div>
+    </div>
+    <div class="panel">
+      <h3>Custo médio ponderado por instituição <span class="hint" id="rateNote">—</span></h3>
+      <div class="ratelegend">
+        <span><i style="background:var(--liquido)"></i>Abaixo da média</span>
+        <span><i style="background:var(--custo)"></i>Acima da média</span>
+        <span><i style="background:#8A2A06"></i>Mais cara</span>
+        <span><i class="dash"></i>Média da carteira</span>
+      </div>
+      <div class="chartbox"><canvas id="chRate"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1fr 1.5fr">
+    <div class="panel">
+      <h3>Participação por instituição <span class="hint">volume bruto</span></h3>
+      <div class="chartbox sm"><canvas id="chBank"></canvas></div>
+    </div>
+    <div class="tablewrap">
+      <div class="tablehead">
+        <h3>Operações</h3>
+        <span class="count" id="rowcount">—</span>
+      </div>
+      <div class="scroll">
+        <table id="tbl">
+          <thead><tr>
+            <th data-k="data">Data <span class="ar">↕</span></th>
+            <th data-k="banco">Instituição <span class="ar">↕</span></th>
+            <th data-k="mes">Mês <span class="ar">↕</span></th>
+            <th class="r" data-k="bruto">Bruto <span class="ar">↕</span></th>
+            <th class="r" data-k="despesas">Despesas <span class="ar">↕</span></th>
+            <th class="r" data-k="rate">Custo % <span class="ar">↕</span></th>
+            <th class="r" data-k="liquido">Líquido <span class="ar">↕</span></th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+          <tfoot><tr class="tfoot" id="tfoot"></tr></tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="drop"><div class="box">Solte a planilha .xlsx para atualizar</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SNAPSHOT_TS=0;
+const PRISTINE='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+const STORE_KEY='antecip2026';
+function canon(name){
+  const u=String(name??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
+  if(!u)return 'Não identificado';
+  if(u.includes('ITAU SOLUTIONS')||u.includes('SOLUTIONS - CEVA')||u.includes('CEVA - ITAU')||(u.includes('ITAU')&&u.includes('SOLUTIONS')))return 'Itaú Solutions';
+  if(u.includes('DAYCOVAL'))return 'Daycoval';
+  if(u.includes('TRANSPOCRED'))return 'Transpocred';
+  if(u.includes('SOFISA'))return 'Banco Sofisa';
+  if(u.includes('INTER'))return 'Banco Inter';
+  if(u.includes('OURO FINO'))return 'Ouro Fino';
+  if(u.includes('MONKEY'))return 'Monkey';
+  return String(name).replace(/\s+/g,' ').trim().toLowerCase().replace(/\b\w/g,c=>c.toUpperCase())||'Não identificado';
+}
+function subClient(name){
+  const u=String(name).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+  if(!u.includes('SOLUTIONS')&&!u.includes('CEVA'))return '';
+  if(u.includes('AGC'))return 'AGC';
+  if(u.includes('FABER'))return 'Faber-Castell';
+  if(u.includes('CEVA'))return 'CEVA';
+  return '';
+}
+const prep=arr=>arr.map(r=>({...r,banco:canon(r.banco),sub:subClient(r.banco)}));
+const RAW = [{"mes": "JAN", "banco": "ITAÚ SOLUTIONS - CEVA FM", "data": "2026-01-05", "bruto": 35246.56, "juros": 628.75, "tarifa": 0.0, "iof": 0.0, "despesas": 628.75, "liquido": 34617.81}, {"mes": "JAN", "banco": "TRANSPOCRED", "data": "2026-01-06", "bruto": 195565.12, "juros": 566.61, "tarifa": 0.0, "iof": 0.0, "despesas": 566.61, "liquido": 194998.51}, {"mes": "JAN", "banco": "DAYCOVAL", "data": "2026-01-06", "bruto": 306730.96, "juros": 16887.61, "tarifa": 0.0, "iof": 0.0, "despesas": 16887.61, "liquido": 289843.35}, {"mes": "JAN", "banco": "TRANSPOCRED", "data": "2026-01-08", "bruto": 232086.29, "juros": 1142.64, "tarifa": 0.0, "iof": 0.0, "despesas": 1142.64, "liquido": 230943.65}, {"mes": "JAN", "banco": "ITAÚ SOLUTIONS - CEVA FM", "data": "2026-01-12", "bruto": 37921.51, "juros": 742.36, "tarifa": 0.0, "iof": 0.0, "despesas": 742.36, "liquido": 37179.15}, {"mes": "JAN", "banco": "TRANSPOCRED", "data": "2026-01-12", "bruto": 224023.28, "juros": 759.29, "tarifa": 0.0, "iof": 0.0, "despesas": 759.29, "liquido": 223263.99}, {"mes": "JAN", "banco": "DAYCOVAL", "data": "2026-01-13", "bruto": 447994.28, "juros": 18027.58, "tarifa": 0.0, "iof": 0.0, "despesas": 18027.58, "liquido": 429966.7}, {"mes": "JAN", "banco": "ITAÚ SOLUTIONS - CEVA FM", "data": "2026-01-13", "bruto": 13167.23, "juros": 208.18, "tarifa": 0.0, "iof": 0.0, "despesas": 208.18, "liquido": 12959.05}, {"mes": "JAN", "banco": "TRANSPOCRED", "data": "2026-01-14", "bruto": 200007.49, "juros": 670.07, "tarifa": 0.0, "iof": 0.0, "despesas": 670.07, "liquido": 199337.42}, {"mes": "JAN", "banco": "DAYCOVAL", "data": "2026-01-15", "bruto": 793233.9, "juros": 40518.07, "tarifa": 0.0, "iof": 0.0, "despesas": 40518.07, "liquido": 752715.83}, {"mes": "JAN", "banco": "TRANSPOCRED", "data": "2026-01-19", "bruto": 224468.14, "juros": 1131.64, "tarifa": 0.0, "iof": 0.0, "despesas": 1131.64, "liquido": 223336.5}, {"mes": "JAN", "banco": "ITAÚ SOLUTIONS - CEVA FM", "data": "2026-01-20", "bruto": 7300.87, "juros": 174.99, "tarifa": 0.0, "iof": 0.0, "despesas": 174.99, "liquido": 7125.88}, {"mes": "JAN", "banco": "TRANSPOCRED", "data": "2026-01-20", "bruto": 151220.13, "juros": 749.26, "tarifa": 0.0, "iof": 0.0, "despesas": 749.26, "liquido": 150470.87}, {"mes": "JAN", "banco": "DAYCOVAL", "data": "2026-01-20", "bruto": 714737.64, "juros": 36691.02, "tarifa": 0.0, "iof": 0.0, "despesas": 36691.02, "liquido": 678046.62}, {"mes": "JAN", "banco": "TRANSPOCRED", "data": "2026-01-22", "bruto": 153198.78, "juros": 659.72, "tarifa": 0.0, "iof": 0.0, "despesas": 659.72, "liquido": 152539.06}, {"mes": "JAN", "banco": "BANCO SOFISA", "data": "2026-01-26", "bruto": 416639.56, "juros": 10098.43, "tarifa": 0.0, "iof": 0.0, "despesas": 10098.43, "liquido": 406541.13}, {"mes": "JAN", "banco": "TRANSPOCRED", "data": "2026-01-26", "bruto": 172487.96, "juros": 696.82, "tarifa": 0.0, "iof": 0.0, "despesas": 696.82, "liquido": 171791.14}, {"mes": "JAN", "banco": "DAYCOVAL", "data": "2026-01-27", "bruto": 376304.34, "juros": 13457.22, "tarifa": 0.0, "iof": 0.0, "despesas": 13457.22, "liquido": 362847.12}, {"mes": "JAN", "banco": "TRANSPOCRED", "data": "2026-01-29", "bruto": 168698.27, "juros": 671.84, "tarifa": 0.0, "iof": 0.0, "despesas": 671.84, "liquido": 168026.43}, {"mes": "JAN", "banco": "TRANSPOCRED", "data": "2026-01-30", "bruto": 156515.13, "juros": 1023.66, "tarifa": 0.0, "iof": 0.0, "despesas": 1023.66, "liquido": 155491.47}, {"mes": "FEV", "banco": "CEVA - ITAU SOLUTIONS", "data": "2026-02-03", "bruto": 53014.94, "juros": 866.3, "tarifa": 0.0, "iof": 0.0, "despesas": 866.3, "liquido": 52148.64}, {"mes": "FEV", "banco": "DAYCOVAL", "data": "2026-02-04", "bruto": 577956.35, "juros": 25366.25, "tarifa": 0.0, "iof": 0.0, "despesas": 25366.25, "liquido": 552590.1}, {"mes": "FEV", "banco": "TRANSPOCRED", "data": "2026-02-05", "bruto": 209103.21, "juros": 762.11, "tarifa": 0.0, "iof": 0.0, "despesas": 762.11, "liquido": 208341.1}, {"mes": "FEV", "banco": "OURO FINO", "data": "2026-02-05", "bruto": 248262.42, "juros": 8847.96, "tarifa": 0.0, "iof": 0.0, "despesas": 8847.96, "liquido": 239414.46}, {"mes": "FEV", "banco": "DAYCOVAL", "data": "2026-02-06", "bruto": 204072.07, "juros": 12205.72, "tarifa": 0.0, "iof": 0.0, "despesas": 12205.72, "liquido": 191866.35}, {"mes": "FEV", "banco": "TRANSPOCRED", "data": "2026-02-06", "bruto": 130817.55, "juros": 782.51, "tarifa": 0.0, "iof": 0.0, "despesas": 782.51, "liquido": 130035.04}, {"mes": "FEV", "banco": "TRANSPOCRED", "data": "2026-02-10", "bruto": 184877.52, "juros": 479.36, "tarifa": 0.0, "iof": 0.0, "despesas": 479.36, "liquido": 184398.16}, {"mes": "FEV", "banco": "TRANSPOCRED", "data": "2026-02-11", "bruto": 134415.25, "juros": 710.26, "tarifa": 0.0, "iof": 0.0, "despesas": 710.26, "liquido": 133704.99}, {"mes": "FEV", "banco": "DAYCOVAL", "data": "2026-02-11", "bruto": 205917.99, "juros": 4735.96, "tarifa": 0.0, "iof": 0.0, "despesas": 4735.96, "liquido": 201182.03}, {"mes": "FEV", "banco": "TRANSPOCRED", "data": "2026-02-18", "bruto": 354909.41, "juros": 653.16, "tarifa": 0.0, "iof": 0.0, "despesas": 653.16, "liquido": 354256.25}, {"mes": "FEV", "banco": "TRANSPOCRED", "data": "2026-02-20", "bruto": 201460.67, "juros": 819.49, "tarifa": 0.0, "iof": 0.0, "despesas": 819.49, "liquido": 200641.18}, {"mes": "FEV", "banco": "DAYCOVAL", "data": "2026-02-20", "bruto": 397735.69, "juros": 15002.34, "tarifa": 0.0, "iof": 0.0, "despesas": 15002.34, "liquido": 382733.35}, {"mes": "FEV", "banco": "TRANSPOCRED", "data": "2026-02-24", "bruto": 332230.31, "juros": 1158.69, "tarifa": 0.0, "iof": 0.0, "despesas": 1158.69, "liquido": 331071.62}, {"mes": "FEV", "banco": "TRANSPOCRED", "data": "2026-02-25", "bruto": 178100.23, "juros": 1005.98, "tarifa": 0.0, "iof": 0.0, "despesas": 1005.98, "liquido": 177094.25}, {"mes": "FEV", "banco": "DAYCOVAL", "data": "2026-02-25", "bruto": 354350.62, "juros": 19217.43, "tarifa": 0.0, "iof": 0.0, "despesas": 19217.43, "liquido": 335133.19}, {"mes": "FEV", "banco": "OURO FINO", "data": "2026-02-27", "bruto": 91614.24, "juros": 3453.96, "tarifa": 0.0, "iof": 0.0, "despesas": 3453.96, "liquido": 88160.28}, {"mes": "MAR", "banco": "DAYCOVAL", "data": "2026-03-02", "bruto": 311765.07, "juros": 14326.63, "tarifa": 0.0, "iof": 0.0, "despesas": 14326.63, "liquido": 297438.44}, {"mes": "MAR", "banco": "TRANSPOCRED", "data": "2026-03-02", "bruto": 134035.75, "juros": 507.02, "tarifa": 0.0, "iof": 0.0, "despesas": 507.02, "liquido": 133528.73}, {"mes": "MAR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-03-03", "bruto": 226223.98, "juros": 4239.26, "tarifa": 0.0, "iof": 0.0, "despesas": 4239.26, "liquido": 221984.72}, {"mes": "MAR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-03-03", "bruto": 10169.81, "juros": 240.35, "tarifa": 0.0, "iof": 0.0, "despesas": 240.35, "liquido": 9929.46}, {"mes": "MAR", "banco": "TRANSPOCRED", "data": "2026-03-04", "bruto": 190368.79, "juros": 855.18, "tarifa": 0.0, "iof": 0.0, "despesas": 855.18, "liquido": 189513.61}, {"mes": "MAR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-03-04", "bruto": 1431.92, "juros": 29.96, "tarifa": 0.0, "iof": 0.0, "despesas": 29.96, "liquido": 1401.96}, {"mes": "MAR", "banco": "ITAU SOLUTIONS - FABER CASTEL", "data": "2026-03-04", "bruto": 10319.52, "juros": 128.82, "tarifa": 0.0, "iof": 0.0, "despesas": 128.82, "liquido": 10190.7}, {"mes": "MAR", "banco": "DAYCOVAL", "data": "2026-03-05", "bruto": 527025.59, "juros": 25682.64, "tarifa": 0.0, "iof": 0.0, "despesas": 25682.64, "liquido": 501342.95}, {"mes": "MAR", "banco": "DAYCOVAL", "data": "2026-03-06", "bruto": 437516.55, "juros": 19766.34, "tarifa": 0.0, "iof": 0.0, "despesas": 19766.34, "liquido": 417750.21}, {"mes": "MAR", "banco": "TRANSPOCRED", "data": "2026-03-06", "bruto": 175196.1, "juros": 395.31, "tarifa": 0.0, "iof": 0.0, "despesas": 395.31, "liquido": 174800.79}, {"mes": "MAR", "banco": "TRANSPOCRED", "data": "2026-03-10", "bruto": 44880.23, "juros": 107.53, "tarifa": 0.0, "iof": 0.0, "despesas": 107.53, "liquido": 44772.7}, {"mes": "MAR", "banco": "TRANSPOCRED", "data": "2026-03-10", "bruto": 162944.42, "juros": 321.1, "tarifa": 0.0, "iof": 0.0, "despesas": 321.1, "liquido": 162623.32}, {"mes": "MAR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-03-10", "bruto": 2562.83, "juros": 57.86, "tarifa": 0.0, "iof": 0.0, "despesas": 57.86, "liquido": 2504.97}, {"mes": "MAR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-03-10", "bruto": 46718.66, "juros": 1031.56, "tarifa": 0.0, "iof": 0.0, "despesas": 1031.56, "liquido": 45687.1}, {"mes": "MAR", "banco": "DAYCOVAL", "data": "2026-03-10", "bruto": 348167.25, "juros": 16680.29, "tarifa": 0.0, "iof": 0.0, "despesas": 16680.29, "liquido": 331486.96}, {"mes": "MAR", "banco": "TRANSPOCRED", "data": "2026-03-11", "bruto": 87392.47, "juros": 279.47, "tarifa": 0.0, "iof": 0.0, "despesas": 279.47, "liquido": 87113.0}, {"mes": "MAR", "banco": "TRANSPOCRED", "data": "2026-03-13", "bruto": 206804.77, "juros": 867.6, "tarifa": 0.0, "iof": 0.0, "despesas": 867.6, "liquido": 205937.17}, {"mes": "MAR", "banco": "DAYCOVAL", "data": "2026-03-13", "bruto": 299106.57, "juros": 13882.74, "tarifa": 0.0, "iof": 0.0, "despesas": 13882.74, "liquido": 285223.83}, {"mes": "MAR", "banco": "TRANSPOCRED", "data": "2026-03-16", "bruto": 230621.2, "juros": 1489.51, "tarifa": 0.0, "iof": 0.0, "despesas": 1489.51, "liquido": 229131.69}, {"mes": "MAR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-03-17", "bruto": 12363.15, "juros": 286.46, "tarifa": 0.0, "iof": 0.0, "despesas": 286.46, "liquido": 12076.69}, {"mes": "MAR", "banco": "DAYCOVAL", "data": "2026-03-18", "bruto": 587957.77, "juros": 25820.96, "tarifa": 0.0, "iof": 0.0, "despesas": 25820.96, "liquido": 562136.81}, {"mes": "MAR", "banco": "TRANSPOCRED", "data": "2026-03-19", "bruto": 192155.0, "juros": 843.37, "tarifa": 0.0, "iof": 0.0, "despesas": 843.37, "liquido": 191311.63}, {"mes": "MAR", "banco": "DAYCOVAL", "data": "2026-03-20", "bruto": 261459.12, "juros": 12748.98, "tarifa": 0.0, "iof": 0.0, "despesas": 12748.98, "liquido": 248710.14}, {"mes": "MAR", "banco": "TRANSPOCRED", "data": "2026-03-24", "bruto": 79681.22, "juros": 414.23, "tarifa": 0.0, "iof": 0.0, "despesas": 414.23, "liquido": 79266.99}, {"mes": "MAR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-03-24", "bruto": 35830.7, "juros": 676.9, "tarifa": 0.0, "iof": 0.0, "despesas": 676.9, "liquido": 35153.8}, {"mes": "MAR", "banco": "BANCO INTER", "data": "2026-03-24", "bruto": 27856.23, "juros": 685.48, "tarifa": 0.0, "iof": 0.0, "despesas": 685.48, "liquido": 27170.75}, {"mes": "MAR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-03-25", "bruto": 16058.53, "juros": 358.48, "tarifa": 0.0, "iof": 0.0, "despesas": 358.48, "liquido": 15700.05}, {"mes": "MAR", "banco": "TRANSPOCRED", "data": "2026-03-25", "bruto": 155980.85, "juros": 1001.79, "tarifa": 0.0, "iof": 0.0, "despesas": 1001.79, "liquido": 154979.06}, {"mes": "MAR", "banco": "TRANSPOCRED", "data": "2026-03-27", "bruto": 215732.94, "juros": 647.52, "tarifa": 0.0, "iof": 0.0, "despesas": 647.52, "liquido": 215085.42}, {"mes": "MAR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-03-31", "bruto": 237016.27, "juros": 3204.57, "tarifa": 0.0, "iof": 0.0, "despesas": 3204.57, "liquido": 233811.7}, {"mes": "MAR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-03-31", "bruto": 2574.06, "juros": 18.12, "tarifa": 0.0, "iof": 0.0, "despesas": 18.12, "liquido": 2555.94}, {"mes": "MAR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-03-31", "bruto": 1715.4, "juros": 29.43, "tarifa": 0.0, "iof": 0.0, "despesas": 29.43, "liquido": 1685.97}, {"mes": "MAR", "banco": "ITAU SOLUTIONS - FABER CASTEL", "data": "2026-03-31", "bruto": 1902.96, "juros": 26.17, "tarifa": 0.0, "iof": 0.0, "despesas": 26.17, "liquido": 1876.79}, {"mes": "ABR", "banco": "ITAU SOLUTIONS - FABER", "data": "2026-04-02", "bruto": 6918.0, "juros": 127.35, "tarifa": 0.0, "iof": 0.0, "despesas": 127.35, "liquido": 6790.65}, {"mes": "ABR", "banco": "DAYCOVAL", "data": "2026-04-02", "bruto": 479991.23, "juros": 12594.93, "tarifa": 0.0, "iof": 0.0, "despesas": 12594.93, "liquido": 467396.3}, {"mes": "ABR", "banco": "TRANSPOCRED", "data": "2026-04-06", "bruto": 198299.68, "juros": 454.72, "tarifa": 0.0, "iof": 0.0, "despesas": 454.72, "liquido": 197844.96}, {"mes": "ABR", "banco": "TRANSPOCRED", "data": "2026-04-06", "bruto": 201403.91, "juros": 751.4, "tarifa": 0.0, "iof": 0.0, "despesas": 751.4, "liquido": 200652.51}, {"mes": "ABR", "banco": "TRANSPOCRED", "data": "2026-04-07", "bruto": 152585.75, "juros": 729.5, "tarifa": 0.0, "iof": 0.0, "despesas": 729.5, "liquido": 151856.25}, {"mes": "ABR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-04-07", "bruto": 15828.22, "juros": 326.7, "tarifa": 0.0, "iof": 0.0, "despesas": 326.7, "liquido": 15501.52}, {"mes": "ABR", "banco": "DAYCOVAL", "data": "2026-04-07", "bruto": 310964.67, "juros": 14336.58, "tarifa": 0.0, "iof": 0.0, "despesas": 14336.58, "liquido": 296628.09}, {"mes": "ABR", "banco": "TRANSPOCRED", "data": "2026-04-10", "bruto": 123028.59, "juros": 327.05, "tarifa": 0.0, "iof": 0.0, "despesas": 327.05, "liquido": 122701.54}, {"mes": "ABR", "banco": "DAYCOVAL", "data": "2026-04-10", "bruto": 188566.35, "juros": 6741.97, "tarifa": 0.0, "iof": 0.0, "despesas": 6741.97, "liquido": 181824.38}, {"mes": "ABR", "banco": "TRANSPOCRED", "data": "2026-04-13", "bruto": 113566.95, "juros": 613.6, "tarifa": 0.0, "iof": 0.0, "despesas": 613.6, "liquido": 112953.35}, {"mes": "ABR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-04-14", "bruto": 7182.52, "juros": 70.53, "tarifa": 0.0, "iof": 0.0, "despesas": 70.53, "liquido": 7111.99}, {"mes": "ABR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-04-14", "bruto": 1722.61, "juros": 27.22, "tarifa": 0.0, "iof": 0.0, "despesas": 27.22, "liquido": 1695.39}, {"mes": "ABR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-04-14", "bruto": 85890.87, "juros": 1603.81, "tarifa": 0.0, "iof": 0.0, "despesas": 1603.81, "liquido": 84287.06}, {"mes": "ABR", "banco": "DAYCOVAL", "data": "2026-04-15", "bruto": 246827.42, "juros": 10745.58, "tarifa": 0.0, "iof": 0.0, "despesas": 10745.58, "liquido": 236081.84}, {"mes": "ABR", "banco": "TRANSPOCRED", "data": "2026-04-15", "bruto": 238194.39, "juros": 966.22, "tarifa": 0.0, "iof": 0.0, "despesas": 966.22, "liquido": 237228.17}, {"mes": "ABR", "banco": "TRANSPOCRED", "data": "2026-04-17", "bruto": 210617.53, "juros": 842.92, "tarifa": 0.0, "iof": 0.0, "despesas": 842.92, "liquido": 209774.61}, {"mes": "ABR", "banco": "DAYCOVAL", "data": "2026-04-17", "bruto": 373831.78, "juros": 18991.03, "tarifa": 0.0, "iof": 0.0, "despesas": 18991.03, "liquido": 354840.75}, {"mes": "ABR", "banco": "TRANSPOCRED", "data": "2026-04-20", "bruto": 61437.41, "juros": 89.95, "tarifa": 0.0, "iof": 0.0, "despesas": 89.95, "liquido": 61347.46}, {"mes": "ABR", "banco": "BANCO INTER", "data": "2026-04-20", "bruto": 6796.44, "juros": 133.48, "tarifa": 0.0, "iof": 0.0, "despesas": 133.48, "liquido": 6662.96}, {"mes": "ABR", "banco": "DAYCOVAL", "data": "2026-04-20", "bruto": 258668.81, "juros": 4456.42, "tarifa": 0.0, "iof": 0.0, "despesas": 4456.42, "liquido": 254212.39}, {"mes": "ABR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-04-22", "bruto": 44642.26, "juros": 919.5, "tarifa": 0.0, "iof": 0.0, "despesas": 919.5, "liquido": 43722.76}, {"mes": "ABR", "banco": "ITAU SOLUTIONS - AGC", "data": "2026-04-23", "bruto": 40257.23, "juros": 522.2, "tarifa": 0.0, "iof": 0.0, "despesas": 522.2, "liquido": 39735.03}, {"mes": "ABR", "banco": "BANCO INTER", "data": "2026-04-23", "bruto": 10757.7, "juros": 509.24, "tarifa": 0.0, "iof": 0.0, "despesas": 509.24, "liquido": 10248.46}, {"mes": "ABR", "banco": "TRANSPOCRED", "data": "2026-04-24", "bruto": 331183.68, "juros": 1293.46, "tarifa": 0.0, "iof": 0.0, "despesas": 1293.46, "liquido": 329890.22}, {"mes": "ABR", "banco": "DAYCOVAL", "data": "2026-04-27", "bruto": 238643.75, "juros": 6922.47, "tarifa": 0.0, "iof": 0.0, "despesas": 6922.47, "liquido": 231721.28}, {"mes": "ABR", "banco": "TRANSPOCRED", "data": "2026-04-28", "bruto": 205552.19, "juros": 1158.69, "tarifa": 0.0, "iof": 0.0, "despesas": 1158.69, "liquido": 204393.5}, {"mes": "ABR", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-04-28", "bruto": 63122.45, "juros": 1009.64, "tarifa": 0.0, "iof": 0.0, "despesas": 1009.64, "liquido": 62112.81}, {"mes": "ABR", "banco": "TRANSPOCRED", "data": "2026-04-29", "bruto": 149096.15, "juros": 504.77, "tarifa": 0.0, "iof": 0.0, "despesas": 504.77, "liquido": 148591.38}, {"mes": "ABR", "banco": "DAYCOVAL", "data": "2026-04-29", "bruto": 227052.27, "juros": 5617.16, "tarifa": 0.0, "iof": 0.0, "despesas": 5617.16, "liquido": 221435.11}, {"mes": "ABR", "banco": "DAYCOVAL", "data": "2026-04-30", "bruto": 426688.47, "juros": 20996.47, "tarifa": 0.0, "iof": 0.0, "despesas": 20996.47, "liquido": 405692.0}, {"mes": "MAI", "banco": "BANCO INTER", "data": "2026-05-04", "bruto": 56359.47, "juros": 2320.13, "tarifa": 86.0, "iof": 0.0, "despesas": 2406.13, "liquido": 53953.34}, {"mes": "MAI", "banco": "BANCO INTER", "data": "2026-05-04", "bruto": 14069.02, "juros": 579.18, "tarifa": 92.0, "iof": 0.0, "despesas": 671.18, "liquido": 13397.84}, {"mes": "MAI", "banco": "TRANSPOCRED", "data": "2026-05-04", "bruto": 191984.57, "juros": 394.11, "tarifa": 0.0, "iof": 0.0, "despesas": 394.11, "liquido": 191590.46}, {"mes": "MAI", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-05-05", "bruto": 202228.54, "juros": 3148.79, "tarifa": 0.0, "iof": 0.0, "despesas": 3148.79, "liquido": 199079.75}, {"mes": "MAI", "banco": "ITAU SOLUTIONS - AGC", "data": "2026-05-05", "bruto": 8466.67, "juros": 197.42, "tarifa": 0.0, "iof": 0.0, "despesas": 197.42, "liquido": 8269.25}, {"mes": "MAI", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-05-05", "bruto": 10543.24, "juros": 177.14, "tarifa": 0.0, "iof": 0.0, "despesas": 177.14, "liquido": 10366.1}, {"mes": "MAI", "banco": "DAYCOVAL", "data": "2026-05-05", "bruto": 319838.66, "juros": 13771.96, "tarifa": 0.0, "iof": 0.0, "despesas": 13771.96, "liquido": 306066.7}, {"mes": "MAI", "banco": "TRANSPOCRED", "data": "2026-05-07", "bruto": 241258.19, "juros": 1222.85, "tarifa": 0.0, "iof": 0.0, "despesas": 1222.85, "liquido": 240035.34}, {"mes": "MAI", "banco": "TRANSPOCRED", "data": "2026-05-07", "bruto": 235529.83, "juros": 1181.71, "tarifa": 0.0, "iof": 0.0, "despesas": 1181.71, "liquido": 234348.12}, {"mes": "MAI", "banco": "DAYCOVAL", "data": "2026-05-07", "bruto": 418057.83, "juros": 13593.42, "tarifa": 0.0, "iof": 0.0, "despesas": 13593.42, "liquido": 404464.41}, {"mes": "MAI", "banco": "TRANSPOCRED", "data": "2026-05-08", "bruto": 106309.79, "juros": 361.76, "tarifa": 0.0, "iof": 0.0, "despesas": 361.76, "liquido": 105948.03}, {"mes": "MAI", "banco": "DAYCOVAL", "data": "2026-05-08", "bruto": 184706.83, "juros": 7795.79, "tarifa": 0.0, "iof": 0.0, "despesas": 7795.79, "liquido": 176911.04}, {"mes": "MAI", "banco": "TRANSPOCRED", "data": "2026-05-11", "bruto": 146862.98, "juros": 471.84, "tarifa": 0.0, "iof": 0.0, "despesas": 471.84, "liquido": 146391.14}, {"mes": "MAI", "banco": "DAYCOVAL", "data": "2026-05-11", "bruto": 535704.72, "juros": 30775.39, "tarifa": 0.0, "iof": 0.0, "despesas": 30775.39, "liquido": 504929.33}, {"mes": "MAI", "banco": "OURO FINO", "data": "2026-05-11", "bruto": 91536.95, "juros": 2892.61, "tarifa": 0.0, "iof": 0.0, "despesas": 2892.61, "liquido": 88644.34}, {"mes": "MAI", "banco": "MONKEY", "data": "2026-05-11", "bruto": 7187.07, "juros": 45.62, "tarifa": 0.0, "iof": 0.0, "despesas": 45.62, "liquido": 7141.45}, {"mes": "MAI", "banco": "MONKEY", "data": "2026-05-11", "bruto": 84349.88, "juros": 2846.99, "tarifa": 0.0, "iof": 0.0, "despesas": 2846.99, "liquido": 81502.89}, {"mes": "MAI", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-05-12", "bruto": 1152.78, "juros": 23.87, "tarifa": 0.0, "iof": 0.0, "despesas": 23.87, "liquido": 1128.91}, {"mes": "MAI", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-05-12", "bruto": 67942.54, "juros": 1400.86, "tarifa": 0.0, "iof": 0.0, "despesas": 1400.86, "liquido": 66541.68}, {"mes": "MAI", "banco": "TRANSPOCRED", "data": "2026-05-14", "bruto": 307500.2, "juros": 1178.75, "tarifa": 0.0, "iof": 0.0, "despesas": 1178.75, "liquido": 306321.45}, {"mes": "MAI", "banco": "MONKEY", "data": "2026-05-15", "bruto": 312131.4, "juros": 11482.1, "tarifa": 0.0, "iof": 0.0, "despesas": 11482.1, "liquido": 300649.3}, {"mes": "MAI", "banco": "TRANSPOCRED", "data": "2026-05-15", "bruto": 83536.79, "juros": 273.14, "tarifa": 0.0, "iof": 0.0, "despesas": 273.14, "liquido": 83263.65}, {"mes": "MAI", "banco": "DAYCOVAL", "data": "2026-05-18", "bruto": 303600.42, "juros": 8216.35, "tarifa": 0.0, "iof": 0.0, "despesas": 8216.35, "liquido": 295384.07}, {"mes": "MAI", "banco": "TRANSPOCRED", "data": "2026-05-19", "bruto": 249037.75, "juros": 954.14, "tarifa": 0.0, "iof": 0.0, "despesas": 954.14, "liquido": 248083.61}, {"mes": "MAI", "banco": "ITAU SOLUTIONS - AGC", "data": "2026-05-19", "bruto": 10732.49, "juros": 277.56, "tarifa": 0.0, "iof": 0.0, "despesas": 277.56, "liquido": 10454.93}, {"mes": "MAI", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-05-19", "bruto": 24070.63, "juros": 611.08, "tarifa": 0.0, "iof": 0.0, "despesas": 611.08, "liquido": 23459.55}, {"mes": "MAI", "banco": "MONKEY", "data": "2026-05-19", "bruto": 228322.28, "juros": 8289.92, "tarifa": 0.0, "iof": 0.0, "despesas": 8289.92, "liquido": 220032.36}, {"mes": "MAI", "banco": "DAYCOVAL", "data": "2026-05-20", "bruto": 499900.05, "juros": 24124.56, "tarifa": 0.0, "iof": 0.0, "despesas": 24124.56, "liquido": 475775.49}, {"mes": "MAI", "banco": "TRANSPOCRED", "data": "2026-05-21", "bruto": 91689.46, "juros": 233.71, "tarifa": 0.0, "iof": 0.0, "despesas": 233.71, "liquido": 91455.75}, {"mes": "MAI", "banco": "TRANSPOCRED", "data": "2026-05-22", "bruto": 113283.03, "juros": 410.89, "tarifa": 0.0, "iof": 0.0, "despesas": 410.89, "liquido": 112872.14}, {"mes": "MAI", "banco": "MONKEY", "data": "2026-05-25", "bruto": 157009.47, "juros": 5589.8, "tarifa": 0.0, "iof": 0.0, "despesas": 5589.8, "liquido": 151419.67}, {"mes": "MAI", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-05-26", "bruto": 1457.02, "juros": 33.36, "tarifa": 0.0, "iof": 0.0, "despesas": 33.36, "liquido": 1423.66}, {"mes": "MAI", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-05-26", "bruto": 74440.26, "juros": 1687.9, "tarifa": 0.0, "iof": 0.0, "despesas": 1687.9, "liquido": 72752.36}, {"mes": "MAI", "banco": "TRANSPOCRED", "data": "2026-05-27", "bruto": 213360.67, "juros": 518.62, "tarifa": 0.0, "iof": 0.0, "despesas": 518.62, "liquido": 212842.05}, {"mes": "MAI", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-05-28", "bruto": 10691.55, "juros": 279.9, "tarifa": 0.0, "iof": 0.0, "despesas": 279.9, "liquido": 10411.65}, {"mes": "MAI", "banco": "DAYCOVAL", "data": "2026-05-29", "bruto": 352964.25, "juros": 8705.39, "tarifa": 0.0, "iof": 0.0, "despesas": 8705.39, "liquido": 344258.86}, {"mes": "JUN", "banco": "TRANSPOCRED", "data": "2026-06-01", "bruto": 393194.15, "juros": 999.38, "tarifa": 0.0, "iof": 0.0, "despesas": 999.38, "liquido": 392194.77}, {"mes": "JUN", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-06-02", "bruto": 102930.73, "juros": 1868.85, "tarifa": 0.0, "iof": 0.0, "despesas": 1868.85, "liquido": 101061.88}, {"mes": "JUN", "banco": "DAYCOVAL", "data": "2026-06-02", "bruto": 782915.67, "juros": 34768.88, "tarifa": 0.0, "iof": 0.0, "despesas": 34768.88, "liquido": 748146.79}, {"mes": "JUN", "banco": "OURO FINO", "data": "2026-06-02", "bruto": 2440.22, "juros": 40.8, "tarifa": 0.0, "iof": 0.0, "despesas": 40.8, "liquido": 2399.42}, {"mes": "JUN", "banco": "DAYCOVAL", "data": "2026-06-03", "bruto": 737505.53, "juros": 35011.32, "tarifa": 0.0, "iof": 0.0, "despesas": 35011.32, "liquido": 702494.21}, {"mes": "JUN", "banco": "OURO FINO", "data": "2026-06-05", "bruto": 51234.06, "juros": 1821.82, "tarifa": 0.0, "iof": 0.0, "despesas": 1821.82, "liquido": 49412.24}, {"mes": "JUN", "banco": "ITAU SOLUTIONS - AGC", "data": "2026-06-08", "bruto": 5952.66, "juros": 147.23, "tarifa": 0.0, "iof": 0.0, "despesas": 147.23, "liquido": 5805.43}, {"mes": "JUN", "banco": "DAYCOVAL", "data": "2026-06-09", "bruto": 644160.49, "juros": 31052.0, "tarifa": 0.0, "iof": 0.0, "despesas": 31052.0, "liquido": 613108.49}, {"mes": "JUN", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-06-09", "bruto": 1486.36, "juros": 36.84, "tarifa": 0.0, "iof": 0.0, "despesas": 36.84, "liquido": 1449.52}, {"mes": "JUN", "banco": "ITAU SOLUTIONS - CEVA", "data": "2026-06-09", "bruto": 42066.64, "juros": 844.9, "tarifa": 0.0, "iof": 0.0, "despesas": 844.9, "liquido": 41221.74}];
+let DATA = prep(RAW);
+
+const MONTHS=['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+const MLABEL={JAN:'Janeiro',FEV:'Fevereiro',MAR:'Março',ABR:'Abril',MAI:'Maio',JUN:'Junho',JUL:'Julho',AGO:'Agosto',SET:'Setembro',OUT:'Outubro',NOV:'Novembro',DEZ:'Dezembro'};
+const C={bruto:'#3A4DAF',custo:'#C2410C',custoDark:'#8A2A06',liquido:'#0E8C6A',line:'#E6E9F0',muted:'#697287'};
+let state={mes:'',banco:'',q:'',sortK:'data',sortDir:-1};
+let charts={};
+
+const brl=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const brlc=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
+const pct=v=>v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
+const compact=v=>{ if(v>=1e6)return 'R$'+(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})+'M'; if(v>=1e3)return 'R$'+(v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0})+'k'; return brl(v);};
+const dt=s=>{const[y,m,d]=s.split('-');return d+'/'+m;};
+
+function filtered(){
+  return DATA.filter(r=>
+    (!state.mes||r.mes===state.mes)&&
+    (!state.banco||r.banco===state.banco)&&
+    (!state.q||r.banco.toLowerCase().includes(state.q.toLowerCase()))
+  );
+}
+function sum(a,k){return a.reduce((s,r)=>s+r[k],0);}
+
+function buildMonthChips(){
+  const present=MONTHS.filter(m=>DATA.some(r=>r.mes===m));
+  const el=document.getElementById('months');
+  el.innerHTML='';
+  const add=(v,lbl)=>{const b=document.createElement('button');b.className='chip'+(state.mes===v?' on':'');b.textContent=lbl;b.onclick=()=>{state.mes=v;render();};el.appendChild(b);};
+  add('','Todos');
+  present.forEach(m=>add(m,m));
+}
+function buildBankSel(){
+  const banks=[...new Set(DATA.map(r=>r.banco))].sort();
+  const sel=document.getElementById('bankSel');
+  sel.innerHTML='<option value="">Todas as instituições</option>'+banks.map(b=>`<option ${state.banco===b?'selected':''}>${b}</option>`).join('');
+}
+
+function kpis(rows){
+  const bruto=sum(rows,'bruto'),custo=sum(rows,'despesas'),liq=sum(rows,'liquido');
+  const rate=bruto?custo/bruto*100:0;
+  document.getElementById('k-rate').textContent=pct(rate);
+  document.getElementById('k-rate-bar').style.width=Math.min(rate/5*100,100)+'%';
+  document.getElementById('k-bruto').textContent=brl(bruto);
+  document.getElementById('k-ops').textContent=rows.length+' operações';
+  document.getElementById('k-liq').textContent=brl(liq);
+  document.getElementById('k-ticket').textContent='ticket médio '+(rows.length?brl(bruto/rows.length):'—');
+  document.getElementById('k-custo').textContent=brl(custo);
+  document.getElementById('k-banks').textContent=new Set(rows.map(r=>r.banco)).size+' instituições';
+}
+
+function table(rows){
+  const k=state.sortK,d=state.sortDir;
+  const sorted=[...rows].sort((a,b)=>{
+    let va,vb;
+    if(k==='rate'){va=a.bruto?a.despesas/a.bruto:0;vb=b.bruto?b.despesas/b.bruto:0;}
+    else if(k==='mes'){va=MONTHS.indexOf(a.mes);vb=MONTHS.indexOf(b.mes);}
+    else{va=a[k];vb=b[k];}
+    if(typeof va==='string')return d*va.localeCompare(vb);
+    return d*(va-vb);
+  });
+  const tb=document.getElementById('tbody');
+  const avgAll=sum(rows,'bruto')?sum(rows,'despesas')/sum(rows,'bruto')*100:0;
+  tb.innerHTML=sorted.map(r=>{
+    const rt=r.bruto?r.despesas/r.bruto*100:0;
+    return `<tr>
+      <td>${dt(r.data)}</td>
+      <td>${r.banco}${r.sub?` <span style="color:var(--muted);font-size:11px">· ${r.sub}</span>`:''}</td>
+      <td><span class="tag">${r.mes}</span></td>
+      <td class="r num">${brlc(r.bruto)}</td>
+      <td class="r num" style="color:var(--custo)">${brlc(r.despesas)}</td>
+      <td class="r num pct${rt>avgAll?' hi':''}">${rt>avgAll?'▲ ':''}${pct(rt)}</td>
+      <td class="r num" style="color:var(--liquido)">${brlc(r.liquido)}</td>
+    </tr>`;}).join('');
+  const b=sum(rows,'bruto'),c=sum(rows,'despesas'),l=sum(rows,'liquido');
+  document.getElementById('tfoot').innerHTML=
+    `<td colspan="3">Total · ${rows.length} operações</td>
+     <td class="r num">${brlc(b)}</td>
+     <td class="r num" style="color:var(--custo)">${brlc(c)}</td>
+     <td class="r num">${pct(b?c/b*100:0)}</td>
+     <td class="r num" style="color:var(--liquido)">${brlc(l)}</td>`;
+  document.getElementById('rowcount').textContent=rows.length+' de '+DATA.length;
+  document.querySelectorAll('thead th').forEach(th=>{th.classList.toggle('act',th.dataset.k===k);const ar=th.querySelector('.ar');if(ar)ar.textContent=th.dataset.k===k?(d>0?'↑':'↓'):'↕';});
+}
+
+function chartMonth(){
+  const present=MONTHS.filter(m=>DATA.some(r=>r.mes===m));
+  const rows=DATA.filter(r=>!state.banco||r.banco===state.banco).filter(r=>!state.q||r.banco.toLowerCase().includes(state.q.toLowerCase()));
+  const bru=[],liq=[],rt=[];
+  present.forEach(m=>{const g=rows.filter(r=>r.mes===m);const b=sum(g,'bruto');bru.push(b);liq.push(sum(g,'liquido'));rt.push(b?sum(g,'despesas')/b*100:0);});
+  charts.month&&charts.month.destroy();
+  charts.month=new Chart(document.getElementById('chMonth'),{
+    data:{labels:present,datasets:[
+      {type:'bar',label:'Bruto',data:bru,backgroundColor:C.bruto,borderRadius:5,maxBarThickness:26,yAxisID:'y'},
+      {type:'bar',label:'Líquido',data:liq,backgroundColor:C.liquido,borderRadius:5,maxBarThickness:26,yAxisID:'y'},
+      {type:'line',label:'Custo %',data:rt,borderColor:C.custo,backgroundColor:C.custo,tension:.35,pointRadius:3,pointBackgroundColor:'#fff',pointBorderColor:C.custo,pointBorderWidth:2,borderWidth:2,yAxisID:'y1'}
+    ]},
+    options:baseOpts({dual:true})
+  });
+}
+function chartRate(){
+  const rows=filtered();
+  const banks={};
+  rows.forEach(r=>{(banks[r.banco]??={b:0,d:0,n:0});banks[r.banco].b+=r.bruto;banks[r.banco].d+=r.despesas;banks[r.banco].n++;});
+  const totB=sum(rows,'bruto'),totD=sum(rows,'despesas');
+  const avg=totB?totD/totB*100:0; // custo médio ponderado da carteira
+  const arr=Object.entries(banks).map(([k,v])=>({k,rate:v.b?v.d/v.b*100:0,b:v.b,n:v.n})).sort((a,b)=>b.rate-a.rate);
+  const maxRate=Math.max(...arr.map(a=>a.rate),0);
+  const colors=arr.map(a=>{
+    if(a.rate>=maxRate-1e-9&&a.rate>avg)return C.custoDark; // mais caro
+    return a.rate>avg?C.custo:C.liquido;                    // acima da média x eficiente
+  });
+  document.getElementById('rateNote').textContent='Média ponderada da carteira: '+pct(avg);
+  charts.rate&&charts.rate.destroy();
+  charts.rate=new Chart(document.getElementById('chRate'),{
+    type:'bar',
+    data:{labels:arr.map(a=>a.k),datasets:[{data:arr.map(a=>+a.rate.toFixed(2)),backgroundColor:colors,borderRadius:5,maxBarThickness:20}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          title:c=>c[0].label,
+          label:c=>' Custo ponderado: '+pct(c.raw),
+          afterLabel:c=>{const a=arr[c.dataIndex];return ['Volume bruto: '+brl(a.b),a.n+' operações',a.rate>avg?'▲ acima da média':'▼ abaixo da média'];}
+        }},
+        annotation:{annotations:{avg:{
+          type:'line',scaleID:'x',value:avg,borderColor:'#11151E',borderWidth:1.5,borderDash:[4,4],
+          label:{display:true,content:'Média '+pct(avg),position:'start',backgroundColor:'#11151E',color:'#fff',font:{family:'Inter',size:10,weight:'600'},padding:{x:6,y:3},yAdjust:-2,borderRadius:5}
+        }}}
+      },
+      scales:{
+        x:{beginAtZero:true,grid:{color:C.line,drawTicks:false},border:{display:false},
+           ticks:{font:{family:'Inter',size:11},color:C.muted,callback:v=>v+'%'}},
+        y:{grid:{display:false},border:{display:false},
+           ticks:{font:{family:'Inter',size:11.5,weight:'500'},color:'#11151E',autoSkip:false}}
+      }}
+  });
+}
+function chartBank(){
+  const rows=filtered();
+  const banks={};
+  rows.forEach(r=>{banks[r.banco]=(banks[r.banco]||0)+r.bruto;});
+  let arr=Object.entries(banks).sort((a,b)=>b[1]-a[1]);
+  if(arr.length>7){const top=arr.slice(0,7);const out=arr.slice(7).reduce((s,a)=>s+a[1],0);top.push(['Outras',out]);arr=top;}
+  const palette=['#3A4DAF','#0E8C6A','#C2410C','#6F5BD6','#1E9CB8','#C9A227','#B0457E','#9AA3B5'];
+  charts.bank&&charts.bank.destroy();
+  charts.bank=new Chart(document.getElementById('chBank'),{
+    type:'doughnut',
+    data:{labels:arr.map(a=>a[0]),datasets:[{data:arr.map(a=>a[1]),backgroundColor:palette,borderColor:'#fff',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+      plugins:{legend:{position:'right',labels:{boxWidth:9,boxHeight:9,font:{family:'Inter',size:11.5},color:'#39414f',padding:9,usePointStyle:true,pointStyle:'circle'}},
+      tooltip:{callbacks:{label:c=>' '+compact(c.raw)}}}}
+  });
+}
+function baseOpts({dual,horizontal,suffix}={}){
+  const o={responsive:true,maintainAspectRatio:false,
+    indexAxis:horizontal?'y':'x',
+    plugins:{legend:{display:dual,position:'bottom',labels:{boxWidth:9,boxHeight:9,usePointStyle:true,pointStyle:'circle',font:{family:'Inter',size:11.5},color:'#39414f',padding:14}},
+      tooltip:{callbacks:{label:c=>{const v=c.raw;const s=suffix==='%'||c.dataset.yAxisID==='y1'?pct(v):compact(v);return ' '+(c.dataset.label?c.dataset.label+': ':'')+s;}}}},
+    scales:{
+      x:{grid:{display:horizontal,color:C.line,drawTicks:false},border:{display:false},ticks:{font:{family:'Inter',size:11},color:C.muted,callback:horizontal?(v=>v+(suffix||'')):undefined}},
+      y:{grid:{display:!horizontal,color:C.line,drawTicks:false},border:{display:false},ticks:{font:{family:'Inter',size:11},color:C.muted,callback:horizontal?undefined:(v=>compact(v))}}
+    }};
+  if(dual){o.scales.y1={position:'right',grid:{display:false},border:{display:false},ticks:{font:{family:'Inter',size:11},color:C.custo,callback:v=>v.toFixed(1)+'%'}};}
+  return o;
+}
+
+function render(){
+  buildMonthChips();
+  const rows=filtered();
+  kpis(rows);
+  table(rows);
+  chartMonth();chartRate();chartBank();
+}
+
+// ---- interactions ----
+document.getElementById('bankSel').onchange=e=>{state.banco=e.target.value;render();};
+let qt;document.getElementById('search').oninput=e=>{clearTimeout(qt);qt=setTimeout(()=>{state.q=e.target.value;render();},180);};
+document.querySelectorAll('thead th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(state.sortK===k)state.sortDir*=-1;else{state.sortK=k;state.sortDir=k==='banco'?1:-1;}table(filtered());});
+
+document.getElementById('reload').onclick=()=>document.getElementById('file').click();
+document.getElementById('file').onchange=e=>{const f=e.target.files[0];if(f)parseFile(f);};
+
+// drag & drop
+const drop=document.getElementById('drop');
+let dc=0;
+window.addEventListener('dragenter',e=>{e.preventDefault();dc++;drop.classList.add('on');});
+window.addEventListener('dragover',e=>e.preventDefault());
+window.addEventListener('dragleave',e=>{dc--;if(dc<=0)drop.classList.remove('on');});
+window.addEventListener('drop',e=>{e.preventDefault();dc=0;drop.classList.remove('on');const f=e.dataTransfer.files[0];if(f)parseFile(f);});
+
+function parseFile(f){
+  const rd=new FileReader();
+  rd.onload=ev=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array',cellDates:true});
+      const out=[];
+      wb.SheetNames.forEach(sn=>{
+        const mes=sn.trim().toUpperCase().slice(0,3);
+        if(!MONTHS.includes(mes))return;
+        const aoa=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true});
+        aoa.forEach(r=>{
+          const banco=r[0];
+          if(!banco||!String(banco).trim()||String(banco).trim().toUpperCase()==='BANCO')return;
+          const bruto=Number(r[2]);
+          if(!bruto)return;
+          let data=r[1];
+          if(data instanceof Date)data=data.toISOString().slice(0,10);
+          else if(typeof data==='number'){const d=new Date(Date.UTC(1899,11,30+data));data=d.toISOString().slice(0,10);}
+          else data=String(data||'');
+          const n=x=>Number(x)||0;
+          out.push({mes,banco:String(banco).trim(),data,bruto:+bruto.toFixed(2),juros:+n(r[3]).toFixed(2),tarifa:+n(r[4]).toFixed(2),iof:+n(r[5]).toFixed(2),despesas:+n(r[6]).toFixed(2),liquido:+n(r[7]).toFixed(2)});
+        });
+      });
+      if(!out.length){toast('Nenhuma operação encontrada nas abas de mês.');return;}
+      DATA=prep(out);state.mes='';state.banco='';state.q='';
+      document.getElementById('search').value='';
+      document.getElementById('srcnote').textContent=f.name;
+      buildBankSel();stamp();render();
+      saveLocal(f.name);
+      publishOnline(out);
+      document.getElementById('restoreWrap').style.display='inline';
+      toast(out.length+' operações carregadas.');
+    }catch(err){toast('Não foi possível ler a planilha.');console.error(err);}
+  };
+  rd.readAsArrayBuffer(f);
+}
+
+document.getElementById('export').onclick=()=>{
+  const rows=filtered();
+  const head=['Data','Instituicao','Mes','Bruto','Juros','Tarifa','IOF','Despesas','Liquido'];
+  const lines=[head.join(';')].concat(rows.map(r=>[r.data,r.banco,r.mes,r.bruto,r.juros,r.tarifa,r.iof,r.despesas,r.liquido].join(';')));
+  const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='antecipacoes_2026.csv';a.click();
+};
+
+function stamp(ts){const d=ts?new Date(ts):new Date();document.getElementById('ts').textContent=d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}
+let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600);}
+
+// ---- memória do navegador ----
+function saveLocal(name){
+  try{const snap=DATA.map(({sub,...r})=>r);localStorage.setItem(STORE_KEY,JSON.stringify({data:snap,ts:Date.now(),name}));}catch(e){}
+}
+function clearLocal(){try{localStorage.removeItem(STORE_KEY);}catch(e){}}
+function loadLocal(){
+  try{
+    const raw=localStorage.getItem(STORE_KEY);if(!raw)return false;
+    const o=JSON.parse(raw);
+    if(o&&Array.isArray(o.data)&&o.data.length&&(o.ts||0)>SNAPSHOT_TS){
+      DATA=prep(o.data);
+      document.getElementById('srcnote').textContent=(o.name||'planilha')+' · memória do navegador';
+      document.getElementById('restoreWrap').style.display='inline';
+      stamp(o.ts);return true;
+    }
+  }catch(e){}
+  return false;
+}
+document.getElementById('restoreBtn').onclick=e=>{
+  e.preventDefault();clearLocal();
+  DATA=prep(RAW);state.mes='';state.banco='';state.q='';
+  document.getElementById('search').value='';
+  document.getElementById('srcnote').textContent='dados embutidos da planilha';
+  document.getElementById('restoreWrap').style.display='none';
+  buildBankSel();stamp();render();
+  toast('Dados originais restaurados.');
+};
+
+// ---- salvar painel atualizado (.html com dados embutidos) ----
+function exportHTML(){
+  try{
+    const snap=DATA.map(({sub,...r})=>r);
+    const a=PRISTINE.indexOf('const RAW = '),b=PRISTINE.indexOf('let DATA = prep(RAW);');
+    if(a<0||b<0){toast('Não foi possível gerar o arquivo.');return;}
+    let html=PRISTINE.slice(0,a)+'const RAW = '+JSON.stringify(snap)+';\n'+PRISTINE.slice(b);
+    html=html.replace(/const SNAPSHOT_TS=\d+;/,'const SNAPSHOT_TS='+Date.now()+';');
+    const url=URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'}));
+    const el=document.createElement('a');el.href=url;el.download='painel_antecipacoes_2026.html';el.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    toast('Painel salvo com os dados atuais.');
+  }catch(e){toast('Não foi possível gerar o arquivo.');console.error(e);}
+}
+document.getElementById('savehtml').onclick=exportHTML;
+
+const fromMem=loadLocal();
+buildBankSel();if(!fromMem)stamp();render();
+
+// ─── Sincronização online (Apps Script) ─────────────────────────────────────
+const SYNC_KEY='antecip2026SyncCfg';
+function loadSyncCfg(){try{const raw=localStorage.getItem(SYNC_KEY);if(raw)return JSON.parse(raw);}catch(e){}return{url:'',token:''};}
+function saveSyncCfg(cfg){try{localStorage.setItem(SYNC_KEY,JSON.stringify(cfg));}catch(e){}}
+function syncStatus(kind,msg){
+  const el=document.getElementById('sync-status');
+  const cls=kind==='ok'?'ok':kind==='err'?'err':'wait';
+  el.innerHTML=`<span class="pill-status ${cls}">${msg}</span>`;
+}
+async function fetchOnline(){
+  const cfg=loadSyncCfg();
+  const url=(cfg.url||'').trim();
+  if(!url)return false;
+  syncStatus('wait','Lendo dados publicados…');
+  try{
+    const res=await fetch(url+(url.includes('?')?'&':'?')+'_='+Date.now(),{cache:'no-store'});
+    if(!res.ok)throw{kind:'http',message:'HTTP '+res.status};
+    const arr=await res.json();
+    if(!Array.isArray(arr)||!arr.length)throw{kind:'empty'};
+    DATA=prep(arr);state.mes='';state.banco='';state.q='';
+    document.getElementById('search').value='';
+    document.getElementById('srcnote').textContent='planilha publicada online';
+    buildBankSel();stamp();render();
+    saveLocal('planilha publicada online');
+    document.getElementById('restoreWrap').style.display='inline';
+    syncStatus('ok','✓ lendo ao vivo');
+    return true;
+  }catch(err){
+    if(err&&err.kind==='empty')syncStatus('wait','conectado — aguardando a 1ª planilha ser publicada');
+    else syncStatus('err','sem conexão com a fonte online');
+    return false;
+  }
+}
+async function publishOnline(records){
+  const cfg=loadSyncCfg();
+  const url=(cfg.url||'').trim();
+  if(!url)return;
+  syncStatus('wait','Publicando…');
+  try{
+    const body=JSON.stringify(records);
+    const res=await fetch(url+(cfg.token?(url.includes('?')?'&':'?')+'token='+encodeURIComponent(cfg.token):''),{
+      method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body
+    });
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const j=await res.json().catch(()=>({}));
+    if(j&&j.error)throw new Error(j.error);
+    syncStatus('ok','✓ publicado — todo o time já vê essa atualização');
+  }catch(err){
+    syncStatus('err','falha ao publicar: '+(err.message||err));
+  }
+}
+document.getElementById('syncUrl').value=loadSyncCfg().url||'';
+document.getElementById('syncToken').value=loadSyncCfg().token||'';
+document.getElementById('syncSaveBtn').onclick=()=>{
+  saveSyncCfg({url:document.getElementById('syncUrl').value.trim(),token:document.getElementById('syncToken').value.trim()});
+  fetchOnline();
+};
+// ao abrir a página, tenta ler a fonte online (se configurada) por cima do que já foi renderizado acima
+fetchOnline();
+</script>
+</body>
+</html>
