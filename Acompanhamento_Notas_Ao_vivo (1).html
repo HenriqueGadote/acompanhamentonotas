@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Notas Fiscais — ao vivo</title>
+<style>
+  :root{
+    --bg:#EEF1F6;--panel:#FFFFFF;--line:#E2E7EF;--line-strong:#D2D9E4;
+    --ink:#19222F;--muted:#5C6776;--faint:#94A0B0;--primary:#243A8E;
+    --ok:#1E9D6B;--lanc:#E08A28;--aprov:#2E74D6;--canc:#8794A6;
+    --ok-bg:#E5F4ED;--lanc-bg:#FBEFDD;--aprov-bg:#E4EEFB;--canc-bg:#EEF1F5;
+    --radius:14px;--shadow:0 1px 2px rgba(20,30,50,.04),0 6px 22px rgba(20,30,50,.05);
+  }
+  *{box-sizing:border-box}html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);
+    font-family:"SF Pro Display",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding:24px 20px 56px}
+  .wrap{max-width:1120px;margin:0 auto}
+
+  .head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:14px}
+  .title-block .eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--primary);font-weight:700;margin-bottom:7px}
+  .title-block h1{font-size:27px;line-height:1.1;letter-spacing:-.02em;font-weight:800;margin:0}
+  .title-block .sub{color:var(--muted);font-size:13.5px;margin-top:6px}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .ctrl{display:flex;flex-direction:column;gap:5px}
+  .ctrl label{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600;padding-left:2px}
+  select{appearance:none;border:1px solid var(--line-strong);background:var(--panel);color:var(--ink);font:inherit;font-size:13px;font-weight:600;padding:8px 30px 8px 12px;border-radius:9px;cursor:pointer;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M3 4.5L6 7.5L9 4.5' stroke='%235C6776' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
+    background-repeat:no-repeat;background-position:right 10px center}
+  .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:9px;overflow:hidden;background:var(--panel)}
+  .seg button{border:0;background:transparent;font:inherit;font-size:12.5px;font-weight:600;color:var(--muted);padding:8px 14px;cursor:pointer}
+  .seg button.on{background:var(--primary);color:#fff}
+
+  /* connection bar */
+  .conn{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);
+    border-radius:11px;padding:10px 14px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .pill{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:999px}
+  .pill .led{width:9px;height:9px;border-radius:50%}
+  .pill.live{background:var(--ok-bg);color:#147a51}.pill.live .led{background:var(--ok);box-shadow:0 0 0 4px rgba(30,157,107,.15)}
+  .pill.load{background:#EEF1F5;color:var(--muted)}.pill.load .led{background:var(--faint)}
+  .pill.fail{background:var(--lanc-bg);color:#b46c14}.pill.fail .led{background:var(--lanc)}
+  .conn .msg{font-size:12.5px;color:var(--muted);flex:1;min-width:160px}
+  .btn{border:1px solid var(--line-strong);background:var(--panel);color:var(--ink);font:inherit;font-size:12.5px;font-weight:700;
+    padding:8px 13px;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  .btn:hover{border-color:var(--primary);color:var(--primary)}
+  .btn.spin svg{animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  details.src{margin-left:auto}
+  details.src>summary{list-style:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--faint)}
+  details.src>summary::-webkit-details-marker{display:none}
+  .srcbox{display:flex;gap:8px;margin-top:10px;width:100%}
+  .srcbox input{flex:1;border:1px solid var(--line-strong);border-radius:9px;padding:8px 11px;font:inherit;font-size:12px;color:var(--ink)}
+  .srcbox input.nmw{flex:0 0 170px}
+  .srclist{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+  .srcrow{display:flex;align-items:center;gap:9px;font-size:12.5px;background:#F7F9FC;border:1px solid var(--line);border-radius:8px;padding:7px 11px}
+  .srcrow .nm{font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .srcrow .tag-active{font-size:10px;font-weight:700;color:#147a51;background:var(--ok-bg);padding:3px 8px;border-radius:999px;flex:none}
+  .srcrow button{border:0;background:transparent;color:var(--faint);cursor:pointer;font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:6px;flex:none}
+  .srcrow button.use{color:var(--primary)}
+  .srcrow button.use:hover{background:var(--aprov-bg)}
+  .srcrow button.rm:hover{color:#c0392b;background:#FBEAEA}
+  .srchint{font-size:11.5px;color:var(--faint);margin-top:9px;line-height:1.5}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 17px;box-shadow:var(--shadow)}
+  .kpi .cap{font-size:11.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:7px}
+  .kpi .dot{width:9px;height:9px;border-radius:3px;flex:none}
+  .kpi .big{font-size:30px;font-weight:800;letter-spacing:-.025em;margin-top:9px;line-height:1}
+  .kpi .meta{font-size:12px;color:var(--faint);margin-top:7px;font-weight:500}
+  .kpi .meta b{color:var(--muted);font-weight:700}
+
+  .pipe{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px 20px;box-shadow:var(--shadow);margin-bottom:18px}
+  .pipe h3,.card h3{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 0 4px}
+  .pipe .lead{font-size:13px;color:var(--faint);margin:0 0 16px}
+  .flow{display:flex;align-items:stretch;gap:10px}
+  .stage{flex:1;min-width:0;border-radius:11px;padding:14px;color:#fff;display:flex;flex-direction:column;justify-content:space-between}
+  .stage .s-name{font-size:12.5px;font-weight:700;opacity:.95}
+  .stage .s-count{font-size:26px;font-weight:800;letter-spacing:-.02em}
+  .stage .s-val{font-size:11.5px;opacity:.9;margin-top:10px;font-weight:600}
+  .stage .s-pct{font-size:11px;opacity:.85;margin-top:3px}
+  .arrow{align-self:center;color:var(--faint);font-size:20px;flex:none}
+  .st-aprov{background:linear-gradient(135deg,#2E74D6,#2862bd)}
+  .st-lanc{background:linear-gradient(135deg,#E08A28,#cf7a1c)}
+  .st-ok{background:linear-gradient(135deg,#1E9D6B,#18895d)}
+  .st-pend{background:linear-gradient(135deg,#8A5FD1,#7147b8)}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow)}
+  .card .htop{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .card .htop .hint{font-size:11px;color:var(--faint);font-weight:600}
+
+  .donut-wrap{display:flex;align-items:center;gap:22px}
+  .donut{position:relative;flex:none}
+  .donut .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .donut .center .n{font-size:24px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .donut .center .l{font-size:10.5px;color:var(--faint);font-weight:600;margin-top:3px;text-transform:uppercase;letter-spacing:.06em}
+  .legend{display:flex;flex-direction:column;gap:11px;flex:1;min-width:0}
+  .legend .row{display:flex;align-items:center;gap:10px;font-size:13px}
+  .legend .sw{width:11px;height:11px;border-radius:3px;flex:none}
+  .legend .lname{font-weight:600;flex:1;min-width:0}
+  .legend .ln{font-weight:800}.legend .lp{color:var(--faint);font-size:11.5px;font-weight:600;width:42px;text-align:right}
+
+  .bars{display:flex;flex-direction:column;gap:13px}
+  .bar .lab{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+  .bar .lab .nm{font-size:13px;font-weight:600}
+  .bar .lab .vv{font-size:12.5px;font-weight:700}
+  .bar .lab .vv small{color:var(--faint);font-weight:600;margin-left:6px}
+  .track{height:9px;background:#EDF0F5;border-radius:6px;overflow:hidden}
+  .fill{height:100%;border-radius:6px;transition:width .5s cubic-bezier(.22,.61,.36,1)}
+
+  .cc-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow);margin-bottom:18px}
+  .form-card{border-color:#E7DAF7;background:linear-gradient(180deg,#FBF8FF,#FFFFFF)}
+  .form-card h3{color:#6E42B5}
+  .form-card .lead{font-size:13.5px;color:var(--muted);margin:0 0 16px;line-height:1.55}
+  .form-card .lead b{color:#6E42B5;font-weight:800}
+  .form-card .empty{font-size:13px;color:var(--ok);font-weight:700;display:flex;align-items:center;gap:8px}
+  .aprov-card{border-color:#D6E4FA;background:linear-gradient(180deg,#F6FAFF,#FFFFFF)}
+  .aprov-card h3{color:#1F5AB8}
+  .aprov-card .lead{font-size:13.5px;color:var(--muted);margin:0 0 16px;line-height:1.55}
+  .aprov-card .lead b{color:#1F5AB8;font-weight:800}
+  .aprov-card .empty{font-size:13px;color:var(--ok);font-weight:700;display:flex;align-items:center;gap:8px}
+
+  .alert-card{border-color:#F6D9D9;background:linear-gradient(180deg,#FFF8F8,#FFFFFF)}
+  .alert-card h3{color:#B23A3A}
+  .alert-sec{margin-top:14px}
+  .alert-sec:first-of-type{margin-top:2px}
+  .alert-sec h4{font-size:12.5px;font-weight:800;color:var(--ink);margin:0 0 4px}
+  .alert-sec .lead{font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.5}
+  .alert-sec .lead b{color:#B23A3A;font-weight:800}
+  .alert-sec .ok-msg{color:var(--ok);font-weight:700}
+  .alert-list{display:flex;flex-direction:column;gap:6px}
+  .alert-item{border-radius:8px;padding:8px 12px;border-left:3px solid var(--line)}
+  .alert-item.sev-crit{background:#FDF1F1;border-left-color:#C0392B}
+  .alert-item.sev-warn{background:#FDF6EC;border-left-color:#E08A28}
+  .alert-item .ai-main{font-size:12.5px;color:var(--ink);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+  .alert-item .ai-forn{color:var(--muted);font-weight:600;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}
+  .alert-item .ai-sub{font-size:11.5px;color:var(--faint);margin-top:2px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .alert-item .ai-badge{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .alert-item.sev-crit .ai-badge{color:#C0392B;border-color:#F1C6C0}
+  .alert-item.sev-warn .ai-badge{color:#B5720F;border-color:#F3DCB0}
+  .alert-more{font-size:11.5px;color:var(--faint);padding:2px 4px}
+
+  .ai-card{border-color:#D8E0F5;background:linear-gradient(180deg,#F7F9FF,#FFFFFF)}
+  .ai-card h3{color:var(--primary)}
+  .ai-card .lead{font-size:13px;color:var(--muted);margin:0 0 14px;line-height:1.55}
+  .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .btn.primary:hover{opacity:.9;color:#fff}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .ai-output{margin-top:14px;font-size:13.5px;line-height:1.65;color:var(--ink)}
+  .ai-output p{margin:0 0 10px}
+  .ai-output p:last-child{margin-bottom:0}
+  .ai-output strong{color:var(--primary)}
+  .ai-output .ai-empty{color:var(--faint);font-size:13px}
+  .ai-output .ai-err{color:#B23A3A;font-size:13px;background:#FDF1F1;border-radius:8px;padding:10px 12px}
+  .ai-loading{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:13px;padding:6px 0}
+  .ai-loading .spin2{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--primary);animation:sp 0.8s linear infinite}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:0 10px 11px;border-bottom:1px solid var(--line)}
+  th.r,td.r{text-align:right}
+  td{padding:11px 10px;border-bottom:1px solid #F0F2F6;font-weight:600}
+  tr:last-child td{border-bottom:0}td.name{font-weight:700}
+  .minibar{height:6px;border-radius:4px;background:var(--primary);opacity:.85}
+  .minicell{min-width:110px}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .tag-ok{background:var(--ok-bg);color:#147a51}.tag-pend{background:var(--lanc-bg);color:#b46c14}
+
+  .foot{margin-top:20px;font-size:12px;color:var(--faint);line-height:1.6;text-align:center}
+  .foot b{color:var(--muted)}
+
+  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}
+    .flow{flex-direction:column}.arrow{transform:rotate(90deg)}.head{align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <div class="title-block">
+      <div class="eyebrow">Controle de Entrada — Notas Fiscais</div>
+      <h1>Painel de Acompanhamento</h1>
+      <div class="sub" id="subline">Conectando à planilha…</div>
+    </div>
+    <div class="controls">
+      <div class="ctrl"><label>Planilha</label>
+        <select id="sourceSel"></select></div>
+      <div class="ctrl"><label>Centro de custo</label>
+        <select id="ccFilter"><option value="__all">Todos</option></select></div>
+      <div class="ctrl"><label>Exibir por</label>
+        <div class="seg" id="metricSeg"><button data-m="qtd" class="on">Quantidade</button><button data-m="val">Valor (R$)</button></div></div>
+    </div>
+  </div>
+
+  <div class="conn">
+    <span class="pill load" id="pill"><span class="led"></span><span id="pillText">Conectando…</span></span>
+    <span class="msg" id="connMsg">Buscando os dados da sua planilha do Google Sheets.</span>
+    <button class="btn" id="refreshBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>Atualizar agora</button>
+    <details class="src"><summary>⚙ Fontes de dados (adicionar outra planilha)</summary>
+      <div class="srcpanel">
+        <div class="srcbox">
+          <input id="srcName" class="nmw" spellcheck="false" placeholder="Nome (ex: Julho 2025)">
+          <input id="srcUrl" spellcheck="false" placeholder="Cole o link da planilha do Google Sheets (compartilhada como “qualquer pessoa com o link”) — ou uma URL CSV publicada">
+          <button class="btn" id="srcAddBtn">+ Adicionar</button>
+        </div>
+        <div class="srclist" id="srcList"></div>
+        <div class="srchint">Cole o link normal da planilha (o da barra de endereço, com <code>/edit#gid=...</code>) — não precisa publicar como CSV. Cada planilha vira uma opção no seletor “Planilha” acima.</div>
+      </div>
+    </details>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="pipe">
+    <h3>Fluxo de tratamento</h3>
+    <p class="lead">Caminho da nota até a conclusão — onde elas estão paradas agora.</p>
+    <div class="flow" id="flow"></div>
+  </div>
+
+  <div class="grid">
+    <div class="card"><div class="htop"><h3>Notas pendentes por status</h3><span class="hint" id="statusHint"></span></div>
+      <div class="donut-wrap"><div class="donut" id="donut"></div><div class="legend" id="statusLegend"></div></div></div>
+    <div class="card"><div class="htop"><h3>Pedido de compra</h3><span class="hint">pendentes destacados</span></div>
+      <div class="bars" id="pedidoBars"></div></div>
+  </div>
+
+  <div class="cc-card form-card">
+    <div class="htop"><h3>⚠ Departamentos sem pedido criado — a formalizar</h3><span class="hint" id="formHint"></span></div>
+    <p class="lead" id="formLead"></p>
+    <div class="bars" id="formBars"></div>
+  </div>
+
+  <div class="cc-card aprov-card">
+    <div class="htop"><h3>⏳ Departamentos com notas aguardando aprovação</h3><span class="hint" id="aprovHint"></span></div>
+    <p class="lead" id="aprovLead"></p>
+    <div class="bars" id="aprovBars"></div>
+  </div>
+
+  <div class="cc-card ai-card">
+    <div class="htop"><h3>🤖 Análise inteligente (IA)</h3><span class="hint" id="aiHint"></span></div>
+    <p class="lead">Pede pra Claude ler o resumo dos dados atuais (contagens, valores e os alertas já calculados) e devolver, em português, os pontos mais importantes e o que priorizar hoje.</p>
+    <details class="src">
+      <summary>⚙ Configurar servidor de IA</summary>
+      <div class="srcpanel">
+        <div class="srcbox">
+          <input id="aiEndpoint" spellcheck="false" placeholder="URL do servidor de IA (ex: https://seu-app.up.railway.app)">
+          <input id="aiToken" class="nmw" type="password" spellcheck="false" placeholder="Token (se configurado)">
+          <button class="btn" id="aiSaveCfgBtn">Salvar</button>
+        </div>
+        <div class="srchint">O painel não guarda nenhuma chave da Anthropic — ele chama o seu próprio servidor (deploy no Railway), que guarda a chave em segredo e faz a chamada por trás. Veja o pacote <code>ai-proxy-server</code> com o código pronto pra subir.</div>
+      </div>
+    </details>
+    <button class="btn primary" id="aiRunBtn">✨ Gerar análise agora</button>
+    <div class="ai-output" id="aiOutput"><span class="ai-empty">Configure o servidor acima e clique em “Gerar análise agora” para pedir a leitura da IA sobre os dados atuais.</span></div>
+  </div>
+
+  <div class="cc-card alert-card">
+    <div class="htop"><h3>🔎 Alertas automáticos</h3><span class="hint" id="alertHint"></span></div>
+    <div class="alert-sec">
+      <h4>💰 Valores fora do padrão</h4>
+      <p class="lead" id="alertValLead"></p>
+      <div class="alert-list" id="alertValList"></div>
+    </div>
+    <div class="alert-sec">
+      <h4>⏱ Paradas há muito tempo</h4>
+      <p class="lead" id="alertAgeLead"></p>
+      <div class="alert-list" id="alertAgeList"></div>
+    </div>
+  </div>
+
+  <div class="cc-card"><div class="htop"><h3>Resumo por departamento</h3><span class="hint" id="ccHint"></span></div>
+    <table id="ccTable"><thead><tr>
+      <th>Departamento</th><th class="r">Notas</th><th class="r">Concluídas</th>
+      <th class="r">Pendentes</th><th class="r">Valor total</th><th class="minicell">Participação</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+// ─── Fontes: sua(s) planilha(s) ─────────────────────────────────────────────
+const DEFAULT_SOURCES=[
+  {name:"Julho",id:"1CFijdnbbqC7CICStN5yuz-3dJE1K3ivcVCSbbg2dVv0",gid:"0"},
+  {name:"Junho",id:"19GA0iOD2ZUmIm0--FtQKMn1hq2Xom0u0vnapDzxqRJA",gid:"2119804207"}
+];
+const STORE_KEY="nf_dashboard_sources_v1",ACTIVE_KEY="nf_dashboard_active_v1";
+function loadStore(){
+  try{
+    const raw=localStorage.getItem(STORE_KEY);
+    if(raw){const arr=JSON.parse(raw);if(Array.isArray(arr)&&arr.length)return arr;}
+  }catch(e){}
+  return DEFAULT_SOURCES.slice();
+}
+function saveStore(){try{localStorage.setItem(STORE_KEY,JSON.stringify(SOURCES));}catch(e){}}
+function loadActive(){try{const v=parseInt(localStorage.getItem(ACTIVE_KEY),10);return isNaN(v)?0:v;}catch(e){return 0;}}
+function saveActive(){try{localStorage.setItem(ACTIVE_KEY,String(activeIdx));}catch(e){}}
+
+let SOURCES=loadStore();
+let activeIdx=Math.min(Math.max(loadActive(),0),SOURCES.length-1);
+
+// aceita: link normal do Google Sheets (com ou sem #gid=), só o ID, ou qualquer URL (CSV/TSV publicado etc.)
+function parseSourceInput(input){
+  const s=(input||"").trim();
+  if(!s)return null;
+  const idm=s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if(idm){const gm=s.match(/[?#&]gid=(\d+)/);return{type:"sheet",id:idm[1],gid:gm?gm[1]:"0"};}
+  if(/^[a-zA-Z0-9-_]{25,}$/.test(s))return{type:"sheet",id:s,gid:"0"};
+  return{type:"url",url:s};
+}
+const gvizUrl=(id,gid,fmt)=>`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:${fmt}&headers=1&gid=${gid}`;
+
+// ─── Snapshot de junho (usado se a conexão ao vivo falhar) ───────────────────
+const SNAPSHOT=[
+["OK","DIRETA","FINALIZADO","AEREO","TERCEIROS",2041.38],["CANCELADA","*","CANCELADA","MARITIMO","MANUTENÇÃO",9946],
+["APROVAÇÃO","FORMALIZAR","#N/A","AEREO","ADMINISTRATIVO",2091],["APROVAÇÃO","FORMALIZAR","#N/A","AEREO","ADMINISTRATIVO",341.9],
+["CANCELADA","TARGET","CANCELADA","TARGET","MANUTENÇÃO",1358],["CANCELADA","DIRETA","CANCELADA","AEREO","ADMINISTRATIVO",2008],
+["CANCELADA","DIRETA","CANCELADA","AEREO","ADMINISTRATIVO",1430],["CANCELADA","DIRETA","CANCELADA","AEREO","ADMINISTRATIVO",1880],
+["CANCELADA","DIRETA","CANCELADA","ESC","CONTROLADORIA",1013.43],["CANCELADA","DIRETA","CANCELADA","ESC","CONTROLADORIA",1013.43],
+["CANCELADA","DIRETA","CANCELADA","MARITIMO","OPERACIONAL",650],["LANÇAMENTO","SIM","#N/A","MARITIMO","MANUTENÇÃO",920],
+["LANÇAMENTO","SIM","#N/A","MARITIMO","MANUTENÇÃO",594],["LANÇAMENTO","SIM","#N/A","MARITIMO","MANUTENÇÃO",1961.51],
+["LANÇAMENTO","SIM","#N/A","MARITIMO","MANUTENÇÃO",276],["LANÇAMENTO","SIM","#N/A","FARMA","MANUTENÇÃO",379.99],
+["LANÇAMENTO","SIM","#N/A","FARMA","MANUTENÇÃO",350],["LANÇAMENTO","SIM","#N/A","FARMA","MANUTENÇÃO",769.31],
+["LANÇAMENTO","DIRETA","#N/A","ESC","ADMINISTRATIVO",3396.16],["LANÇAMENTO","DIRETA","#N/A","ESC","ADMINISTRATIVO",3239.23],
+["LANÇAMENTO","DIRETA","#N/A","ESC","ADMINISTRATIVO",2126.66],["LANÇAMENTO","DIRETA","#N/A","ESC","ADMINISTRATIVO",3293.23],
+["LANÇAMENTO","SIM","#N/A","ITAJAI","MANUTENÇÃO",730],["LANÇAMENTO","SIM","#N/A","ITAJAI","MANUTENÇÃO",2300],
+["OK","DIRETA","FINALIZADO","ESC","ADMINISTRATIVO",1500],["LANÇAMENTO","DIRETA","#N/A","ESC","ADMINISTRATIVO",3000],
+["LANÇAMENTO","DIRETA","#N/A","ESC","ADMINISTRATIVO",3000],["OK","DIRETA","FINALIZADO","ESC","ADMINISTRATIVO",390],
+["OK","DIRETA","FINALIZADO","ESC","TI",929.97],["LANÇAMENTO","DIRETA","#N/A","RATEIO","CONTROLADORIA",176.66],
+["LANÇAMENTO","DIRETA","#N/A","RATEIO","CONTROLADORIA",118.46],["LANÇAMENTO","DIRETA","#N/A","RATEIO","CONTROLADORIA",171.66],
+["LANÇAMENTO","DIRETA","#N/A","RATEIO","CONTROLADORIA",596.44],["LANÇAMENTO","DIRETA","#N/A","RATEIO","CONTROLADORIA",30.53],
+["LANÇAMENTO","DIRETA","#N/A","RATEIO","CONTROLADORIA",180.63],["LANÇAMENTO","DIRETA","#N/A","RATEIO","CONTROLADORIA",152.52],
+["OK","SIM","FINALIZADO","MARITIMO","MANUTENÇÃO",50800],["OK","DIRETA","FINALIZADO","ESC","QUALIDADE",1050],
+["OK","DIRETA","FINALIZADO","RATEIO","GR",45703.24],["OK","SIM","FINALIZADO","FARMA","MANUTENÇÃO",1180],
+["OK","SIM","FINALIZADO","AEREO","MANUTENÇÃO",34.08],["OK","SIM","FINALIZADO","AEREO","MANUTENÇÃO",300],
+["OK","SIM","FINALIZADO","FARMA","MANUTENÇÃO",1180],["OK","DIRETA","FINALIZADO","AEREO","TI",1580.25],
+["OK","DIRETA","FINALIZADO","ESC","ADMINISTRATIVO",2341.5],["OK","DIRETA","FINALIZADO","ESC","ADMINISTRATIVO",34.49],
+["OK","SIM","FINALIZADO","MARITIMO","OPERACIONAL",803.25],["OK","DIRETA","FINALIZADO","ESC","ADMINISTRATIVO",810.5],
+["OK","DIRETA","FINALIZADO","ESC","ADMINISTRATIVO",810.5],["OK","DIRETA","FINALIZADO","FARMA","MANUTENÇÃO",47.05],
+["OK","NSC","FINALIZADO","NSC","OPERACIONAL",269510],["OK","NSC","FINALIZADO","NSC","OPERACIONAL",42733],
+["OK","NSC","FINALIZADO","NSC","OPERACIONAL",108725.6],["OK","NSC","FINALIZADO","NSC","OPERACIONAL",9454.4],
+["OK","NSC","FINALIZADO","NSC","OPERACIONAL",575716.34],["OK","DIRETA","FINALIZADO","AEREO","MARKETING",558.13],
+["OK","DIRETA","FINALIZADO","MARITIMO","OPERACIONAL",820.8],["OK","DIRETA","FINALIZADO","ESC","TI",10109],
+["OK","DIRETA","FINALIZADO","ESC","ADMINISTRATIVO",1979],["OK","SIM","FINALIZADO","RATEIO","MANUTENÇÃO",1350],
+["OK","DIRETA","FINALIZADO","ESC","ADMINISTRATIVO",2500],["OK","SIM","FINALIZADO","FARMA","MANUTENÇÃO",1180],
+["OK","DIRETA","FINALIZADO","ESC","QUALIDADE",1050],["OK","SIM","FINALIZADO","MARITIMO","MANUTENÇÃO",110],
+["OK","SIM","FINALIZADO","FARMA","MANUTENÇÃO",1576.58],["OK","SIM","FINALIZADO","FARMA","MANUTENÇÃO",379.99],
+["OK","DIRETA","FINALIZADO","ESC","COMERCIAL",5411.5],["OK","SIM","FINALIZADO","ESC","TI",1183],
+["OK","DIRETA","FINALIZADO","FARMA","MANUTENÇÃO",379.99],["OK","SIM","FINALIZADO","MARITIMO","OPERACIONAL",350],
+["OK","DIRETA","FINALIZADO","AEREO","FINANCEIRO",508.66],["OK","DIRETA","FINALIZADO","AEREO","RH",2044.1],
+["OK","DIRETA","FINALIZADO","AEREO","ADMINISTRATIVO",1936.14],["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",2037],
+["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",1358],["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",1358],
+["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",1358],["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",1358],
+["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",125.4],["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",2943.6],
+["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",699.01],["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",3075.6],
+["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",71.84],["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",2067],
+["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",93.29],["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",534.58],
+["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",572.97],["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",489.3],
+["OK","TARGET","FINALIZADO","TARGET","MANUTENÇÃO",622.56],["OK","DIRETA","FINALIZADO","ESC","QUALIDADE",720],
+["OK","SIM","FINALIZADO","AEREO","MANUTENÇÃO",2095],["OK","SIM","FINALIZADO","FARMA","MANUTENÇÃO",44.4],
+["OK","SIM","FINALIZADO","AEREO","MANUTENÇÃO",839.58],["OK","SIM","FINALIZADO","MARITIMO","MANUTENÇÃO",689.7],
+["OK","DIRETA","FINALIZADO","ESC","RH",848],["OK","DIRETA","FINALIZADO","ESC","RH",9377.22],
+["OK","DIRETA","FINALIZADO","ESC","RH",400],["OK","DIRETA","FINALIZADO","ESC","RH",400],
+["OK","DIRETA","FINALIZADO","ESC","RH",15000]
+].map(r=>({status:r[0],pedido:r[1],rodopar:r[2],cc:r[3],dep:r[4],valor:r[5]}));
+
+// ─── Config visual ───────────────────────────────────────────────────────────
+const STATUS={"OK":{label:"Concluída (OK)",color:"#1E9D6B"},"LANÇAMENTO":{label:"Em lançamento",color:"#E08A28"},
+  "APROVAÇÃO":{label:"Em aprovação",color:"#2E74D6"},"CANCELADA":{label:"Cancelada",color:"#8794A6"},
+  "PENDENTE DE PEDIDO":{label:"Pendente de pedido",color:"#8A5FD1"}};
+const stCfg=s=>STATUS[s]||{label:s||"—",color:"#A7B0BE"};
+const PED_COLOR={"DIRETA":"#243A8E","SIM":"#2E74D6","TARGET":"#5B6B9E","NSC":"#7A86A8","FORMALIZAR":"#E08A28","*":"#C2566B"};
+const PED_LABEL={"DIRETA":"Compra direta","SIM":"Com pedido","TARGET":"Target","NSC":"NSC","FORMALIZAR":"A formalizar (pendente)","*":"Sem classificação"};
+const PENDING={has:s=>s!=="OK"}; // pendente = tudo que ainda não foi concluído
+
+let DATA=SNAPSHOT.slice(), LIVE=false, metric="qtd", ccFilter="__all";
+let LAST_OUTLIERS=[], LAST_STUCK=[];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const brl=v=>v.toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2});
+const brlShort=v=>v>=1e6?"R$ "+(v/1e6).toLocaleString("pt-BR",{maximumFractionDigits:1})+" mi"
+  :v>=1e3?"R$ "+(v/1e3).toLocaleString("pt-BR",{maximumFractionDigits:1})+" mil":brl(v);
+const sum=(a,f)=>a.reduce((x,y)=>x+f(y),0);
+const norm=s=>(s==null?"":s.toString()).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+function num(c){if(c==null)return 0;if(typeof c==="number")return c;let s=String(c).replace(/[^\d,.-]/g,"");
+  if(s.includes(",")&&s.includes("."))s=s.replace(/\./g,"").replace(",",".");else if(s.includes(","))s=s.replace(",",".");
+  return parseFloat(s)||0;}
+const rows=()=>ccFilter==="__all"?DATA:DATA.filter(d=>d.cc===ccFilter);
+const val=a=>metric==="qtd"?a.length:sum(a,d=>d.valor);
+const fmt=n=>metric==="qtd"?n.toLocaleString("pt-BR"):brlShort(n);
+
+// ─── Parsers ─────────────────────────────────────────────────────────────────
+function parseCSV(text){
+  const rows=[];let row=[],cur="",q=false;
+  for(let i=0;i<text.length;i++){const ch=text[i];
+    if(q){if(ch==='"'){if(text[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=ch;}
+    else{if(ch==='"')q=true;else if(ch===','){row.push(cur);cur="";}
+      else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur="";}
+      else if(ch==='\r'){}else cur+=ch;}}
+  if(cur!==""||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
+function parseGviz(text){
+  const j=JSON.parse(text.replace(/^[^(]*\(/,"").replace(/\);?\s*$/,""));
+  const out=[j.table.cols.map(c=>c.label||"")];
+  j.table.rows.forEach(r=>out.push(r.c.map(cell=>cell?(cell.v!=null?cell.v:(cell.f!=null?cell.f:"")):"")));
+  return out;
+}
+function detectAndParse(text){
+  return (text.includes("setResponse(")||text.trim().startsWith("/*"))?parseGviz(text):parseCSV(text);
+}
+function parseDate(v){
+  if(v==null||v==="")return null;
+  if(v instanceof Date)return isNaN(v)?null:v;
+  if(typeof v==="number"){const epoch=new Date(Date.UTC(1899,11,30));return new Date(epoch.getTime()+v*86400000);}
+  const s=String(v).trim();
+  let m=s.match(/^Date\((\d+),(\d+),(\d+)/);
+  if(m)return new Date(+m[1],+m[2],+m[3]);
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); // dd/mm/yyyy (padrão BR)
+  if(m)return new Date(+m[3],+m[2]-1,+m[1]);
+  m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m)return new Date(+m[1],+m[2]-1,+m[3]);
+  const d=new Date(s);
+  return isNaN(d)?null:d;
+}
+function mapRows(grid){
+  if(!grid||grid.length<2)return[];
+  const head=grid[0].map(norm);
+  const find=preds=>{for(const p of preds){const i=head.findIndex(h=>h.includes(p));if(i>=0)return i;}return -1;};
+  const iS=find(["status"]),iP=find(["possui pedido","pedido de compra"]),iR=find(["rodopar"]),
+    iC=find(["centro de custo"]),iD=find(["departamento"]),iV=find(["valor da nf","valor total","valor"]),
+    iN=find(["numero da nf","número da nf"]),iDt=find(["data de emissao","emissao da nf","data emissao"]),
+    iF=find(["razao social fornecedor","fornecedor"]);
+  if(iS<0||iC<0)return[]; // cabeçalhos não reconhecidos
+  const out=[];
+  for(let r=1;r<grid.length;r++){const c=grid[r];
+    const status=(c[iS]||"").toString().trim().toUpperCase();
+    const cc=(c[iC]||"").toString().trim();
+    if(!status)continue;
+    out.push({status,
+      pedido:((c[iP]||"").toString().trim().toUpperCase())||"*",
+      rodopar:((c[iR]||"").toString().trim().toUpperCase())||"#N/A",
+      cc:cc||"—",dep:((c[iD]||"").toString().trim())||"—",valor:num(c[iV]),
+      num:iN>=0?(c[iN]||"").toString().trim():"",
+      forn:iF>=0?(c[iF]||"").toString().trim():"",
+      data:iDt>=0?parseDate(c[iDt]):null});}
+  return out;
+}
+
+// ─── Conexão ─────────────────────────────────────────────────────────────────
+function setStatus(state,extra,srcName){
+  const pill=document.getElementById("pill"),txt=document.getElementById("pillText"),
+    msg=document.getElementById("connMsg"),sub=document.getElementById("subline");
+  const nm=srcName||(SOURCES[activeIdx]&&SOURCES[activeIdx].name)||"planilha";
+  pill.className="pill "+(state==="ok"?"live":state==="loading"?"load":"fail");
+  if(state==="loading"){txt.textContent="Conectando…";msg.textContent=`Buscando os dados da planilha “${nm}”.`;}
+  if(state==="ok"){const t=new Date().toLocaleTimeString("pt-BR");txt.textContent="Ao vivo";
+    msg.textContent=`Lendo “${nm}” em tempo real · última leitura às ${t} · ${DATA.length} notas.`;
+    sub.textContent="Atualiza sozinho a cada 5 min — ou clique em Atualizar agora.";}
+  if(state==="fail"){txt.textContent="Sem conexão";
+    msg.innerHTML=`Não foi possível ler “${nm}”. `+(extra||"Verifique se a planilha está compartilhada como “qualquer pessoa com o link”.");
+    sub.textContent="Exibindo dados de exemplo — não foi possível ler a planilha ao vivo.";}
+}
+function gvizObjectToGrid(obj){
+  if(!obj||!obj.table)return[];
+  const out=[obj.table.cols.map(c=>c.label||"")];
+  obj.table.rows.forEach(r=>out.push((r.c||[]).map(cell=>cell?(cell.v!=null?cell.v:(cell.f!=null?cell.f:"")):"")));
+  return out;
+}
+// JSONP via <script>: não passa por CORS, então funciona mesmo abrindo o arquivo localmente (file://)
+function jsonpGviz(id,gid){
+  return new Promise((resolve,reject)=>{
+    const cb="__gv"+Math.random().toString(36).slice(2);
+    const url=`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?gid=${gid}&headers=1&tqx=out:json;responseHandler:${cb}&_=${Date.now()}`;
+    const s=document.createElement("script");let done=false;
+    const cleanup=()=>{try{delete window[cb];}catch(e){window[cb]=undefined;}s.remove();};
+    window[cb]=obj=>{done=true;cleanup();resolve(obj);};
+    s.onerror=()=>{if(!done){cleanup();reject(new Error("script"));}};
+    s.src=url;document.head.appendChild(s);
+    setTimeout(()=>{if(!done){cleanup();reject(new Error("timeout"));}},15000);
+  });
+}
+// tenta carregar uma fonte específica (planilha do Sheets ou URL direta); retorna linhas mapeadas ou []
+async function loadFromSource(src){
+  if(src.type==="sheet"){
+    try{
+      const mapped=mapRows(gvizObjectToGrid(await jsonpGviz(src.id,src.gid)));
+      if(mapped.length)return mapped;
+    }catch(e){/* tenta fetch */}
+    for(const fmt of["csv","json"]){
+      try{
+        const res=await fetch(gvizUrl(src.id,src.gid,fmt),{cache:"no-store"});
+        if(!res.ok)continue;
+        const mapped=mapRows(detectAndParse(await res.text()));
+        if(mapped.length)return mapped;
+      }catch(e){/* próximo */}
+    }
+  }else if(src.type==="url"){
+    try{
+      const res=await fetch(src.url,{cache:"no-store"});
+      if(res.ok){
+        const mapped=mapRows(detectAndParse(await res.text()));
+        if(mapped.length)return mapped;
+      }
+    }catch(e){/* falhou */}
+  }
+  return[];
+}
+async function load(){
+  const btn=document.getElementById("refreshBtn");btn.classList.add("spin");
+  setStatus("loading");
+  const src=SOURCES[activeIdx]||SOURCES[0];
+  const mapped=await loadFromSource(src);
+  if(mapped.length){DATA=mapped;LIVE=true;setStatus("ok",null,src.name);render();btn.classList.remove("spin");return;}
+  DATA=SNAPSHOT.slice();LIVE=false;setStatus("fail",null,src.name);render();btn.classList.remove("spin");
+}
+
+// ─── Render ──────────────────────────────────────────────────────────────────
+function renderKpis(D){
+  const total=D.length,totalVal=sum(D,d=>d.valor);
+  const ok=D.filter(d=>d.status==="OK"),pend=D.filter(d=>PENDING.has(d.status)),
+    canc=D.filter(d=>d.status==="CANCELADA"),form=D.filter(d=>d.status==="PENDENTE DE PEDIDO");
+  const pctOk=total?Math.round(ok.length/total*100):0;
+  document.getElementById("kpis").innerHTML=`
+    <div class="kpi"><div class="cap"><span class="dot" style="background:var(--primary)"></span>Total de notas</div>
+      <div class="big">${total.toLocaleString("pt-BR")}</div><div class="meta"><b>${brlShort(totalVal)}</b> em valor</div></div>
+    <div class="kpi"><div class="cap"><span class="dot" style="background:var(--ok)"></span>Concluídas</div>
+      <div class="big" style="color:var(--ok)">${ok.length}</div><div class="meta"><b>${pctOk}%</b> do total · ${brlShort(sum(ok,d=>d.valor))}</div></div>
+    <div class="kpi"><div class="cap"><span class="dot" style="background:var(--lanc)"></span>Em andamento</div>
+      <div class="big" style="color:var(--lanc)">${pend.length}</div><div class="meta">${form.length} pendente(s) de pedido · ${brlShort(sum(pend,d=>d.valor))}</div></div>
+    <div class="kpi"><div class="cap"><span class="dot" style="background:var(--canc)"></span>Canceladas</div>
+      <div class="big" style="color:#6e7a8c">${canc.length}</div><div class="meta">${brlShort(sum(canc,d=>d.valor))} cancelado</div></div>`;
+}
+function renderFlow(D){
+  const total=D.length||1;
+  const formalizar=D.filter(d=>d.status==="PENDENTE DE PEDIDO");
+  let html=`<div class="stage st-pend"><div class="s-name">Pendentes de pedido</div>
+    <div class="s-count">${formalizar.length}</div><div><div class="s-val">${brlShort(sum(formalizar,d=>d.valor))}</div>
+    <div class="s-pct">aguardando formalização</div></div></div><div class="arrow">→</div>`;
+  const order=["APROVAÇÃO","LANÇAMENTO","OK"],cls={"APROVAÇÃO":"st-aprov","LANÇAMENTO":"st-lanc","OK":"st-ok"};
+  order.forEach((s,i)=>{const g=D.filter(d=>d.status===s);
+    html+=`<div class="stage ${cls[s]}"><div class="s-name">${stCfg(s).label}</div>
+      <div class="s-count">${g.length}</div><div><div class="s-val">${brlShort(sum(g,d=>d.valor))}</div>
+      <div class="s-pct">${Math.round(g.length/total*100)}% das notas</div></div></div>`;
+    if(i<order.length-1)html+=`<div class="arrow">→</div>`;});
+  document.getElementById("flow").innerHTML=html;
+}
+function renderDonut(D){
+  const Dp=D.filter(d=>PENDING.has(d.status));
+  const order=["LANÇAMENTO","APROVAÇÃO"];
+  const extra=[...new Set(Dp.map(d=>d.status))].filter(s=>!order.includes(s));
+  const groups=[...order,...extra].map(s=>({s,arr:Dp.filter(d=>d.status===s)})).filter(g=>g.arr.length);
+  const tot=val(Dp)||1,R=58,C=2*Math.PI*R;let off=0,segs="";
+  groups.forEach(g=>{const len=val(g.arr)/tot*C;
+    segs+=`<circle cx="72" cy="72" r="${R}" fill="none" stroke="${stCfg(g.s).color}" stroke-width="22"
+      stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 72 72)"/>`;off+=len;});
+  document.getElementById("donut").innerHTML=`<svg width="144" height="144" viewBox="0 0 144 144">${segs}</svg>
+    <div class="center"><div class="n">${metric==="qtd"?Dp.length:brlShort(sum(Dp,d=>d.valor)).replace("R$ ","")}</div>
+    <div class="l">${metric==="qtd"?"pendentes":"pendente"}</div></div>`;
+  document.getElementById("statusLegend").innerHTML=groups.map(g=>{const v=val(g.arr),p=Math.round(v/tot*100);
+    return `<div class="row"><span class="sw" style="background:${stCfg(g.s).color}"></span>
+      <span class="lname">${stCfg(g.s).label}</span><span class="ln">${fmt(v)}</span><span class="lp">${p}%</span></div>`;}).join("");
+  document.getElementById("statusHint").textContent=(metric==="qtd"?"em quantidade":"em valor")+` · total pendente: ${Dp.length} nota(s), ${brl(sum(Dp,d=>d.valor))}`;
+}
+function renderBars(elId,groups,colorFn,labelFn,hlFn){
+  const max=Math.max(1,...groups.map(g=>val(g.arr)));
+  document.getElementById(elId).innerHTML=groups.map(g=>{const v=val(g.arr),w=Math.round(v/max*100),hl=hlFn&&hlFn(g.key);
+    return `<div class="bar"><div class="lab"><span class="nm">${labelFn(g.key)}</span>
+      <span class="vv" style="color:${colorFn(g.key)}">${fmt(v)}<small>${g.arr.length} nota(s)</small></span></div>
+      <div class="track"><div class="fill" style="width:${w}%;background:${colorFn(g.key)}${hl?";box-shadow:0 0 0 2px var(--lanc-bg)":""}"></div></div></div>`;}).join("");
+}
+function groupBy(D,key,order){
+  const keys=order?order.filter(k=>D.some(d=>d[key]===k)):[...new Set(D.map(d=>d[key]))];
+  const extra=order?[...new Set(D.map(d=>d[key]))].filter(k=>!order.includes(k)):[];
+  return [...keys,...extra].map(k=>({key:k,arr:D.filter(d=>d[key]===k)})).filter(g=>g.arr.length);
+}
+function renderPedido(D){
+  const groups=groupBy(D,"pedido",["DIRETA","SIM","TARGET","NSC","FORMALIZAR","*"]).sort((a,b)=>val(b.arr)-val(a.arr));
+  renderBars("pedidoBars",groups,k=>PED_COLOR[k]||"#888",k=>PED_LABEL[k]||k,k=>k==="FORMALIZAR");
+}
+function renderFormalizar(D){
+  const F=D.filter(d=>d.status==="PENDENTE DE PEDIDO");
+  const totQtd=F.length,totVal=sum(F,d=>d.valor);
+  const hint=document.getElementById("formHint"),lead=document.getElementById("formLead"),box=document.getElementById("formBars");
+  if(!F.length){
+    hint.textContent="tudo em dia";
+    lead.innerHTML=`<span class="empty">✓ Nenhuma nota parada por falta de pedido no momento.</span>`;
+    box.innerHTML="";
+    return;
+  }
+  hint.textContent=`${totQtd} nota(s) · ${brl(totVal)}`;
+  const groups=groupBy(F,"dep").sort((a,b)=>val(b.arr)-val(a.arr));
+  const top=groups[0];
+  const topPct=Math.round((metric==="qtd"?top.arr.length/totQtd:sum(top.arr,d=>d.valor)/totVal)*100);
+  lead.innerHTML=groups.length>1
+    ?`<b>${top.key}</b> concentra a maior parte das notas sem pedido: <b>${topPct}%</b> do total (${top.arr.length} nota(s), ${brl(sum(top.arr,d=>d.valor))}). Ao todo, <b>${groups.length} departamento(s)</b> precisam abrir pedido de compra.`
+    :`<b>${top.key}</b> é o único departamento com notas sem pedido — <b>${top.arr.length}</b> nota(s), ${brl(sum(top.arr,d=>d.valor))}.`;
+  const max=Math.max(1,...groups.map(g=>val(g.arr)));
+  box.innerHTML=groups.map(g=>{
+    const v=val(g.arr),w=Math.round(v/max*100);
+    const pct=Math.round((metric==="qtd"?g.arr.length/totQtd:sum(g.arr,d=>d.valor)/totVal)*100);
+    return `<div class="bar"><div class="lab"><span class="nm">${g.key}</span>
+      <span class="vv" style="color:#7147b8">${fmt(v)}<small>${g.arr.length} nota(s) · ${pct}% do total pendente</small></span></div>
+      <div class="track"><div class="fill" style="width:${w}%;background:#8A5FD1"></div></div></div>`;
+  }).join("");
+}
+function renderAprovacao(D){
+  const F=D.filter(d=>d.status==="APROVAÇÃO");
+  const totQtd=F.length,totVal=sum(F,d=>d.valor);
+  const hint=document.getElementById("aprovHint"),lead=document.getElementById("aprovLead"),box=document.getElementById("aprovBars");
+  if(!F.length){
+    hint.textContent="tudo em dia";
+    lead.innerHTML=`<span class="empty">✓ Nenhuma nota parada em aprovação no momento.</span>`;
+    box.innerHTML="";
+    return;
+  }
+  hint.textContent=`${totQtd} nota(s) · ${brl(totVal)}`;
+  const groups=groupBy(F,"dep").sort((a,b)=>val(b.arr)-val(a.arr));
+  const top=groups[0];
+  const topPct=Math.round((metric==="qtd"?top.arr.length/totQtd:sum(top.arr,d=>d.valor)/totVal)*100);
+  lead.innerHTML=groups.length>1
+    ?`<b>${top.key}</b> concentra a maior parte das notas aguardando aprovação: <b>${topPct}%</b> do total (${top.arr.length} nota(s), ${brl(sum(top.arr,d=>d.valor))}). Ao todo, <b>${groups.length} departamento(s)</b> têm notas paradas em aprovação.`
+    :`<b>${top.key}</b> é o único departamento com notas em aprovação — <b>${top.arr.length}</b> nota(s), ${brl(sum(top.arr,d=>d.valor))}.`;
+  const max=Math.max(1,...groups.map(g=>val(g.arr)));
+  box.innerHTML=groups.map(g=>{
+    const v=val(g.arr),w=Math.round(v/max*100);
+    const pct=Math.round((metric==="qtd"?g.arr.length/totQtd:sum(g.arr,d=>d.valor)/totVal)*100);
+    return `<div class="bar"><div class="lab"><span class="nm">${g.key}</span>
+      <span class="vv" style="color:#1F5AB8">${fmt(v)}<small>${g.arr.length} nota(s) · ${pct}% do total pendente</small></span></div>
+      <div class="track"><div class="fill" style="width:${w}%;background:#2E74D6"></div></div></div>`;
+  }).join("");
+}
+function daysBetween(a,b){return Math.floor((b-a)/86400000);}
+function alertItem(d,sev,badgeText,subExtra){
+  const tag=d.num?`<b>NF ${d.num}</b>`:"<b>Nota</b>";
+  const forn=d.forn?`<span class="ai-forn" title="${d.forn}">${d.forn}</span>`:"";
+  return `<div class="alert-item ${sev}">
+    <div class="ai-main">${tag}${forn}</div>
+    <div class="ai-sub">${d.dep}${subExtra?` · ${subExtra}`:""} <span class="ai-badge">${badgeText}</span></div>
+  </div>`;
+}
+function renderAlerts(D){
+  // 1) valores muito acima da média (possível erro de lançamento/duplicidade)
+  const withVal=D.filter(d=>d.valor>0);
+  const valLead=document.getElementById("alertValLead"),valList=document.getElementById("alertValList");
+  let outliers=[];
+  if(withVal.length>=5){
+    const mean=sum(withVal,d=>d.valor)/withVal.length;
+    const variance=withVal.reduce((a,d)=>a+Math.pow(d.valor-mean,2),0)/withVal.length;
+    const thresh=Math.max(mean+2*Math.sqrt(variance),mean*3);
+    outliers=withVal.filter(d=>d.valor>thresh).sort((a,b)=>b.valor-a.valor);
+    if(outliers.length){
+      valLead.innerHTML=`<b>${outliers.length}</b> nota(s) com valor muito acima da média (${brl(mean)}) — vale conferir se não é erro de digitação ou duplicidade.`;
+      valList.innerHTML=outliers.slice(0,8).map(d=>alertItem(d,"sev-crit",`${(d.valor/mean).toFixed(1)}x a média`,brl(d.valor)))
+        .join("")+(outliers.length>8?`<div class="alert-more">+${outliers.length-8} outra(s)</div>`:"");
+    }else{
+      valLead.innerHTML=`<span class="ok-msg">✓ Nenhum valor fora do padrão identificado.</span>`;valList.innerHTML="";
+    }
+  }else{
+    valLead.innerHTML=`<span class="ok-msg">Poucas notas na seleção para calcular um padrão de valor.</span>`;valList.innerHTML="";
+  }
+  // 2) notas paradas há muito tempo (pendentes, com data de emissão disponível)
+  const now=new Date();
+  const ageLead=document.getElementById("alertAgeLead"),ageList=document.getElementById("alertAgeList");
+  const stuck=D.filter(d=>d.status!=="OK"&&d.status!=="CANCELADA"&&d.data instanceof Date)
+    .map(d=>({...d,dias:daysBetween(d.data,now)})).filter(d=>d.dias>=15).sort((a,b)=>b.dias-a.dias);
+  if(stuck.length){
+    const crit=stuck.filter(d=>d.dias>=30).length;
+    ageLead.innerHTML=`<b>${stuck.length}</b> nota(s) parada(s) há 15 dias ou mais`+(crit?` — <b>${crit}</b> delas há mais de 30 dias.`:".");
+    ageList.innerHTML=stuck.slice(0,8).map(d=>alertItem(d,d.dias>=30?"sev-crit":"sev-warn",`${d.dias} dias parada`,stCfg(d.status).label))
+      .join("")+(stuck.length>8?`<div class="alert-more">+${stuck.length-8} outra(s)</div>`:"");
+  }else{
+    const semData=D.filter(d=>d.status!=="OK"&&d.status!=="CANCELADA"&&!(d.data instanceof Date)).length;
+    ageLead.innerHTML=semData
+      ?`<span class="ok-msg">✓ Nenhuma pendência antiga identificada.</span> <span style="color:var(--faint)">(${semData} nota(s) pendente(s) sem data de emissão para calcular.)</span>`
+      :`<span class="ok-msg">✓ Nenhuma nota pendente há muito tempo.</span>`;
+    ageList.innerHTML="";
+  }
+  const n=outliers.length+stuck.length;
+  document.getElementById("alertHint").textContent=n?`${n} alerta(s)`:"tudo certo";
+  LAST_OUTLIERS=outliers;LAST_STUCK=stuck;
+}
+function renderCC(D){
+  document.getElementById("ccHint").textContent=ccFilter==="__all"?"todos os departamentos":"filtro (centro de custo): "+ccFilter;
+  const deps=[...new Set(D.map(d=>d.dep))];
+  const rd=deps.map(dep=>{const a=D.filter(d=>d.dep===dep);
+    return{dep,n:a.length,ok:a.filter(d=>d.status==="OK").length,pend:a.filter(d=>PENDING.has(d.status)).length,valor:sum(a,d=>d.valor)};})
+    .sort((a,b)=>b.valor-a.valor);
+  const mx=Math.max(1,...rd.map(r=>r.valor));
+  document.querySelector("#ccTable tbody").innerHTML=rd.map(r=>`<tr><td class="name">${r.dep}</td>
+    <td class="r">${r.n}</td><td class="r"><span class="tag tag-ok">${r.ok}</span></td>
+    <td class="r">${r.pend?`<span class="tag tag-pend">${r.pend}</span>`:'<span style="color:var(--faint)">—</span>'}</td>
+    <td class="r">${brl(r.valor)}</td><td class="minicell"><div class="minibar" style="width:${Math.round(r.valor/mx*100)}%"></div></td></tr>`).join("");
+}
+function syncCCfilter(){
+  const sel=document.getElementById("ccFilter"),cur=ccFilter;
+  const ccs=[...new Set(DATA.map(d=>d.cc))].sort();
+  sel.innerHTML='<option value="__all">Todos</option>'+ccs.map(c=>`<option value="${c}">${c}</option>`).join("");
+  if(cur!=="__all"&&ccs.includes(cur))sel.value=cur;else ccFilter="__all";
+}
+
+// ─── Análise inteligente (IA) ───────────────────────────────────────────────
+const AI_CFG_STORE="nf_dashboard_ai_cfg";
+function loadAiCfg(){try{const raw=localStorage.getItem(AI_CFG_STORE);if(raw)return JSON.parse(raw);}catch(e){}return{endpoint:"",token:""};}
+function saveAiCfg(cfg){try{localStorage.setItem(AI_CFG_STORE,JSON.stringify(cfg));}catch(e){}}
+function buildAiSummary(D){
+  const total=D.length,totVal=sum(D,d=>d.valor);
+  const byStatus=groupBy(D,"status").map(g=>`${g.key}: ${g.arr.length} nota(s), ${brl(sum(g.arr,d=>d.valor))}`).join("; ");
+  const byDep=groupBy(D,"dep").sort((a,b)=>val(b.arr)-val(a.arr)).slice(0,10)
+    .map(g=>`${g.key}: ${g.arr.length} nota(s), ${brl(sum(g.arr,d=>d.valor))}`).join("; ");
+  const pendPedido=D.filter(d=>d.status==="PENDENTE DE PEDIDO");
+  const pendAprov=D.filter(d=>d.status==="APROVAÇÃO");
+  const L=[];
+  L.push(`Total na seleção atual: ${total} nota(s), somando ${brl(totVal)}.`);
+  L.push(`Por status: ${byStatus||"—"}.`);
+  L.push(`Top departamentos por valor: ${byDep||"—"}.`);
+  L.push(`Sem pedido criado (status PENDENTE DE PEDIDO): ${pendPedido.length} nota(s), ${brl(sum(pendPedido,d=>d.valor))}.`);
+  L.push(`Aguardando aprovação: ${pendAprov.length} nota(s), ${brl(sum(pendAprov,d=>d.valor))}.`);
+  L.push(LAST_OUTLIERS.length
+    ?`Valores fora do padrão (${LAST_OUTLIERS.length}): `+LAST_OUTLIERS.slice(0,10).map(d=>`NF ${d.num||"?"} (${d.dep}, ${brl(d.valor)}${d.forn?", fornecedor "+d.forn:""})`).join("; ")+"."
+    :"Nenhum valor fora do padrão detectado.");
+  L.push(LAST_STUCK.length
+    ?`Notas paradas há 15+ dias (${LAST_STUCK.length}): `+LAST_STUCK.slice(0,10).map(d=>`NF ${d.num||"?"} (${d.dep}, ${d.dias} dia(s), status ${d.status})`).join("; ")+"."
+    :"Nenhuma nota parada há muito tempo.");
+  return L.join("\n");
+}
+async function runAiAnalysis(){
+  const out=document.getElementById("aiOutput"),btn=document.getElementById("aiRunBtn");
+  const cfg=loadAiCfg();
+  const endpoint=(cfg.endpoint||"").trim().replace(/\/+$/,"");
+  if(!endpoint){out.innerHTML=`<div class="ai-err">Configure a URL do seu servidor de IA em “⚙ Configurar servidor de IA” antes de gerar a análise. Veja o pacote <code>ai-proxy-server</code> para subir o seu no Railway.</div>`;return;}
+  btn.disabled=true;
+  out.innerHTML=`<div class="ai-loading"><span class="spin2"></span>Consultando a IA…</div>`;
+  const summary=buildAiSummary(rows());
+  try{
+    const headers={"content-type":"application/json"};
+    if(cfg.token)headers["x-panel-token"]=cfg.token;
+    const res=await fetch(endpoint+"/api/ai-analysis",{method:"POST",headers,body:JSON.stringify({summary})});
+    let data=null;try{data=await res.json();}catch(e){}
+    if(!res.ok){
+      const msg=(data&&data.error)||`Erro ${res.status} ao consultar o servidor de IA.`;
+      throw new Error(msg);
+    }
+    const text=((data&&data.text)||"").trim();
+    out.innerHTML=text?text.split(/\n{2,}/).map(p=>`<p>${p.replace(/</g,"&lt;").replace(/\n/g,"<br>")}</p>`).join(""):`<span class="ai-empty">A IA não retornou texto.</span>`;
+  }catch(e){
+    out.innerHTML=`<div class="ai-err">Não foi possível concluir a análise: ${((e&&e.message)||e).toString().replace(/</g,"&lt;")}<br>Confira a URL do servidor, o token e sua conexão.</div>`;
+  }finally{
+    btn.disabled=false;
+  }
+}
+
+function render(){
+  syncCCfilter();
+  const D=rows();
+  renderKpis(D);renderFlow(D);renderDonut(D);renderPedido(D);renderFormalizar(D);renderAprovacao(D);renderAlerts(D);renderCC(D);
+  const nm=(SOURCES[activeIdx]&&SOURCES[activeIdx].name)||"planilha";
+  document.getElementById("foot").innerHTML=LIVE
+    ?`Conectado à planilha <b>“${nm}”</b> · valores em reais (BRL) · recarrega a cada 5 min.`
+    :`Modo exemplo (${DATA.length} notas) · não foi possível ler “${nm}” ao vivo. Confira o link em ⚙ Fontes de dados.`;
+}
+
+// ─── Gerenciamento de fontes ────────────────────────────────────────────────
+function renderSourceUI(){
+  const sel=document.getElementById("sourceSel");
+  sel.innerHTML=SOURCES.map((s,i)=>`<option value="${i}">${s.name}</option>`).join("");
+  sel.value=String(activeIdx);
+  document.getElementById("srcList").innerHTML=SOURCES.map((s,i)=>`
+    <div class="srcrow">
+      <span class="nm">${s.name}</span>
+      ${i===activeIdx?'<span class="tag-active">ativa</span>':`<button class="use" data-use="${i}">usar</button>`}
+      ${SOURCES.length>1?`<button class="rm" data-rm="${i}">remover</button>`:""}
+    </div>`).join("");
+}
+function addSource(){
+  const nameEl=document.getElementById("srcName"),urlEl=document.getElementById("srcUrl");
+  const name=nameEl.value.trim()||`Planilha ${SOURCES.length+1}`;
+  const parsed=parseSourceInput(urlEl.value);
+  if(!parsed){urlEl.focus();return;}
+  SOURCES.push({name,...parsed});
+  activeIdx=SOURCES.length-1;
+  saveStore();saveActive();renderSourceUI();
+  nameEl.value="";urlEl.value="";
+  load();
+}
+function selectSource(i){
+  if(i<0||i>=SOURCES.length)return;
+  activeIdx=i;saveActive();renderSourceUI();load();
+}
+function removeSource(i){
+  if(SOURCES.length<=1)return;
+  SOURCES.splice(i,1);
+  if(activeIdx>=SOURCES.length)activeIdx=SOURCES.length-1;else if(activeIdx>i)activeIdx--;
+  saveStore();saveActive();renderSourceUI();load();
+}
+
+// ─── Eventos ─────────────────────────────────────────────────────────────────
+document.getElementById("ccFilter").addEventListener("change",e=>{ccFilter=e.target.value;render();});
+document.querySelectorAll("#metricSeg button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("#metricSeg button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");metric=b.dataset.m;render();}));
+document.getElementById("refreshBtn").addEventListener("click",load);
+document.getElementById("sourceSel").addEventListener("change",e=>selectSource(parseInt(e.target.value,10)));
+document.getElementById("srcAddBtn").addEventListener("click",addSource);
+document.getElementById("srcUrl").addEventListener("keydown",e=>{if(e.key==="Enter")addSource();});
+document.getElementById("srcList").addEventListener("click",e=>{
+  const u=e.target.getAttribute("data-use"),r=e.target.getAttribute("data-rm");
+  if(u!=null)selectSource(parseInt(u,10));
+  if(r!=null)removeSource(parseInt(r,10));
+});
+(function initAiCfg(){
+  const cfg=loadAiCfg();
+  document.getElementById("aiEndpoint").value=cfg.endpoint||"";
+  document.getElementById("aiToken").value=cfg.token||"";
+})();
+document.getElementById("aiSaveCfgBtn").addEventListener("click",()=>{
+  saveAiCfg({endpoint:document.getElementById("aiEndpoint").value.trim(),token:document.getElementById("aiToken").value.trim()});
+});
+document.getElementById("aiRunBtn").addEventListener("click",runAiAnalysis);
+
+renderSourceUI();
+render();      // mostra algo na hora (snapshot)
+load();        // tenta conectar ao vivo
+setInterval(load,5*60*1000);
+</script>
+</body>
+</html>
