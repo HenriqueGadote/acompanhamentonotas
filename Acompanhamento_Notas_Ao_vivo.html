@@ -303,11 +303,7 @@
 
 <script>
 // ─── Fontes: sua(s) planilha(s) ─────────────────────────────────────────────
-const DEFAULT_SOURCES=[
-  {name:"Agosto",id:"1dUQOqPpL5LfmbcL4IcgQJeqI_YpJnSphHxa3AYS97oc",gid:"1492140466"},
-  {name:"Julho",id:"1CFijdnbbqC7CICStN5yuz-3dJE1K3ivcVCSbbg2dVv0",gid:"0"},
-  {name:"Junho",id:"19GA0iOD2ZUmIm0--FtQKMn1hq2Xom0u0vnapDzxqRJA",gid:"2119804207"}
-];
+const DEFAULT_SOURCES=[];
 const STORE_KEY="nf_dashboard_sources_v1",ACTIVE_KEY="nf_dashboard_active_v1";
 function loadStore(){
   try{
@@ -321,7 +317,7 @@ function loadActive(){try{const v=parseInt(localStorage.getItem(ACTIVE_KEY),10);
 function saveActive(){try{localStorage.setItem(ACTIVE_KEY,String(activeIdx));}catch(e){}}
 
 let SOURCES=loadStore();
-let activeIdx=Math.min(Math.max(loadActive(),0),SOURCES.length-1);
+let activeIdx=SOURCES.length?Math.min(Math.max(loadActive(),0),SOURCES.length-1):0;
 
 // aceita: link normal do Google Sheets (com ou sem #gid=), só o ID, ou qualquer URL (CSV/TSV publicado etc.)
 function parseSourceInput(input){
@@ -490,6 +486,9 @@ function setStatus(state,extra,srcName){
   if(state==="fail"){txt.textContent="Sem conexão";
     msg.innerHTML=`Não foi possível ler “${nm}”. `+(extra||"Verifique se a planilha está compartilhada como “qualquer pessoa com o link”.");
     sub.textContent="Exibindo dados de exemplo — não foi possível ler a planilha ao vivo.";}
+  if(state==="none"){txt.textContent="Nenhuma planilha";
+    msg.innerHTML=`Nenhuma planilha cadastrada ainda. Abra “⚙ Fontes de dados” abaixo e cole o link da sua planilha do Google Sheets.`;
+    sub.textContent="Exibindo dados de exemplo até você conectar uma planilha.";}
 }
 function gvizObjectToGrid(obj){
   if(!obj||!obj.table)return[];
@@ -538,6 +537,9 @@ async function loadFromSource(src){
 }
 async function load(){
   const btn=document.getElementById("refreshBtn");btn.classList.add("spin");
+  if(!SOURCES.length){
+    DATA=SNAPSHOT.slice();LIVE=false;setStatus("none");render();btn.classList.remove("spin");return;
+  }
   setStatus("loading");
   const src=SOURCES[activeIdx]||SOURCES[0];
   const mapped=await loadFromSource(src);
