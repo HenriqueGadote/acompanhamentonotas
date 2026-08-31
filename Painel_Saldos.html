@@ -38,10 +38,14 @@
   .pill-status.err{background:var(--negbg);color:var(--neg)}
   .pill-status.wait{background:#eef1f6;color:var(--muted)}
   .mov-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .mov-daypick{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--soft);font-weight:600}
+  .mov-daypick input[type=date]{border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit;font-size:12.5px;color:var(--ink);background:#fff}
   .mov-card details.sync{text-align:left;margin-top:10px}
   .mov-card details.sync>summary{color:var(--soft);font-size:12px}
   .mov-card .sync-box{box-shadow:none;border:1px solid var(--line);padding:12px;margin-top:6px}
-  .mov-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+  .mov-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:16px}
+  .mov-box.ant{background:#eef1fc}
+  .mov-box.ant .mov-value{color:#3b4fb0}
   .mov-box{border:1px solid var(--line);border-radius:12px;padding:16px 18px}
   .mov-box.out{background:var(--negbg)}
   .mov-box.in{background:var(--posbg)}
@@ -51,7 +55,7 @@
   .mov-box.out .mov-value{color:var(--neg)}
   .mov-box.in .mov-value{color:var(--pos)}
   .mov-day{font-size:11.5px;color:var(--soft);margin-top:4px}
-  @media(max-width:700px){.mov-grid{grid-template-columns:1fr}}
+  @media(max-width:700px){.mov-grid{grid-template-columns:1fr 1fr}}
   .btn:hover{transform:translateY(-1px)} .btn svg{width:15px;height:15px}
 
   .grid{display:grid;gap:16px;margin-top:42px}
@@ -189,7 +193,8 @@
     <!-- LIMITES (LIS) -->
     <section class="panel mov-card">
       <div class="mov-head">
-        <div class="ptitle">Entradas e saídas · dia anterior</div>
+        <div class="ptitle">Entradas e saídas</div>
+        <div class="mov-daypick"><span>Dia</span><input type="date" id="movDatePick"><button class="btn" id="movTodayBtn" style="box-shadow:none;padding:6px 10px;font-size:11.5px">Ontem</button></div>
         <div id="mov-status"></div>
       </div>
       <details class="sync">
@@ -197,12 +202,13 @@
         <div class="sync-box">
           <input id="movId" spellcheck="false" placeholder="Link ou ID da planilha MOV4 do mês atual">
           <div class="row"><button class="btn" id="movSaveBtn" style="box-shadow:none">Salvar</button></div>
-          <div class="hint">Essa planilha troca todo mês (ex: MOV4_09_2026 em setembro) — atualize o link aqui quando a nova sair. Cada aba dentro dela representa um dia (formato dd-mm); o painel busca sozinho a aba do dia anterior.</div>
+          <div class="hint">Essa planilha troca todo mês (ex: MOV4_09_2026 em setembro) — atualize o link aqui quando a nova sair. Cada aba dentro dela representa um dia (formato dd-mm); escolha a data desejada acima.</div>
         </div>
       </details>
       <div class="mov-grid">
         <div class="mov-box out"><div class="mov-label">Saídas</div><div class="mov-value" id="movOut">—</div></div>
         <div class="mov-box in"><div class="mov-label">Entradas</div><div class="mov-value" id="movIn">—</div></div>
+        <div class="mov-box ant"><div class="mov-label">Antecipação</div><div class="mov-value" id="movAnt">—</div></div>
         <div class="mov-box net"><div class="mov-label">Saldo do dia</div><div class="mov-value" id="movNet">—</div></div>
       </div>
       <div class="mov-day" id="movDayLabel"></div>
@@ -634,35 +640,49 @@ function sumCol(grid,colIdx,rowStart,rowEnd){
   }
   return s;
 }
+function yesterdayISO(){
+  const y=new Date();y.setDate(y.getDate()-1);
+  return `${y.getFullYear()}-${String(y.getMonth()+1).padStart(2,'0')}-${String(y.getDate()).padStart(2,'0')}`;
+}
 async function renderMov4(){
   const cfg=loadMov4Cfg();
   const id=extractSheetId(cfg.id);
   if(!id){mov4Status('wait','configure a planilha abaixo');document.getElementById('movDayLabel').textContent='';return;}
-  const yest=new Date();yest.setDate(yest.getDate()-1);
-  const dd=String(yest.getDate()).padStart(2,'0'),mm=String(yest.getMonth()+1).padStart(2,'0');
-  const sheetName=`${dd}-${mm}`;
+  const isoDate=document.getElementById('movDatePick').value||yesterdayISO();
+  const[y,m,d]=isoDate.split('-');
+  const sheetName=`${d}-${m}`;
   mov4Status('wait','Lendo aba '+sheetName+'…');
   try{
     const grid=await fetchMov4Day(id,sheetName);
-    // colunas: I=índice 8, J=índice 9 (saídas) · L=índice 11, M=índice 12 (entradas) · linhas 16 a 24 (índice 15 a 23, 0-based)
+    // colunas: I=índice 8, J=índice 9 (saídas) · L=índice 11, M=índice 12 (entradas)
+    // linhas 16 a 23 (índice 15 a 22, 0-based) somam normalmente; linha 24 (índice 23) = "Antecipação", fica separada e fora do total de Entradas
     const saidas=sumCol(grid,9,15,23);
-    const entradas=sumCol(grid,12,15,23);
+    const entradas=sumCol(grid,12,15,22);
+    const antecipacao=sumCol(grid,12,23,23);
     document.getElementById('movOut').textContent=movBRL(saidas);
     document.getElementById('movIn').textContent=movBRL(entradas);
+    document.getElementById('movAnt').textContent=movBRL(antecipacao);
     document.getElementById('movNet').textContent=movBRL(entradas-saidas);
     document.getElementById('movDayLabel').textContent=`Referente ao dia ${sheetName} (aba "${sheetName}")`;
     mov4Status('ok','✓ atualizado');
   }catch(err){
     document.getElementById('movOut').textContent='—';
     document.getElementById('movIn').textContent='—';
+    document.getElementById('movAnt').textContent='—';
     document.getElementById('movNet').textContent='—';
     document.getElementById('movDayLabel').textContent='';
-    mov4Status('err','não encontrei a aba "'+sheetName+'" — confira o link/mês configurado');
+    mov4Status('err','não encontrei a aba "'+sheetName+'" — confira a data escolhida ou o link/mês configurado');
   }
 }
 document.getElementById('movId').value=loadMov4Cfg().id||'';
 document.getElementById('movSaveBtn').onclick=()=>{
   saveMov4Cfg({id:document.getElementById('movId').value.trim()});
+  renderMov4();
+};
+document.getElementById('movDatePick').value=yesterdayISO();
+document.getElementById('movDatePick').addEventListener('change',renderMov4);
+document.getElementById('movTodayBtn').onclick=()=>{
+  document.getElementById('movDatePick').value=yesterdayISO();
   renderMov4();
 };
 renderMov4();
