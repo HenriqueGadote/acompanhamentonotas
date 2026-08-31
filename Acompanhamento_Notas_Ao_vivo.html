@@ -304,7 +304,7 @@
 <script>
 // ─── Fontes: sua(s) planilha(s) ─────────────────────────────────────────────
 const DEFAULT_SOURCES=[
-  {name:"Notas Fiscais",id:"1dUQOqPpL5LfmbcL4IcgQJeqI_YpJnSphHxa3AYS97oc",gid:"1492140466"}
+  {name:"Notas Fiscais",type:"sheet",id:"1dUQOqPpL5LfmbcL4IcgQJeqI_YpJnSphHxa3AYS97oc",gid:"1492140466"}
 ];
 const STORE_KEY="nf_dashboard_sources_v1",ACTIVE_KEY="nf_dashboard_active_v1";
 function loadStore(){
@@ -513,7 +513,7 @@ function jsonpGviz(id,gid){
 }
 // tenta carregar uma fonte específica (planilha do Sheets ou URL direta); retorna linhas mapeadas ou []
 async function loadFromSource(src){
-  if(src.type==="sheet"){
+  if(src.type==="sheet"||(!src.type&&src.id)){
     try{
       const mapped=mapRows(gvizObjectToGrid(await jsonpGviz(src.id,src.gid)));
       if(mapped.length)return mapped;
