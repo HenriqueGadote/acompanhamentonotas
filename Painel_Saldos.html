@@ -680,7 +680,7 @@ async function renderMov4(){
     document.getElementById('movOut').textContent=movBRL(saidas);
     document.getElementById('movIn').textContent=movBRL(entradas);
     document.getElementById('movAnt').textContent=movBRL(antecipacao);
-    document.getElementById('movNet').textContent=movBRL(entradas-saidas);
+    document.getElementById('movNet').textContent=movBRL(entradas+antecipacao-saidas);
     document.getElementById('movDayLabel').textContent=`Referente ao dia ${sheetName} (aba "${sheetName}")`;
     mov4Status('ok','✓ atualizado');
   }catch(err){
