@@ -37,6 +37,21 @@
   .pill-status.ok{background:var(--posbg);color:var(--pos)}
   .pill-status.err{background:var(--negbg);color:var(--neg)}
   .pill-status.wait{background:#eef1f6;color:var(--muted)}
+  .mov-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .mov-card details.sync{text-align:left;margin-top:10px}
+  .mov-card details.sync>summary{color:var(--soft);font-size:12px}
+  .mov-card .sync-box{box-shadow:none;border:1px solid var(--line);padding:12px;margin-top:6px}
+  .mov-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+  .mov-box{border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .mov-box.out{background:var(--negbg)}
+  .mov-box.in{background:var(--posbg)}
+  .mov-box.net{background:#f3f5fa}
+  .mov-label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);font-weight:700;margin-bottom:6px}
+  .mov-value{font-size:24px;font-weight:800}
+  .mov-box.out .mov-value{color:var(--neg)}
+  .mov-box.in .mov-value{color:var(--pos)}
+  .mov-day{font-size:11.5px;color:var(--soft);margin-top:4px}
+  @media(max-width:700px){.mov-grid{grid-template-columns:1fr}}
   .btn:hover{transform:translateY(-1px)} .btn svg{width:15px;height:15px}
 
   .grid{display:grid;gap:16px;margin-top:42px}
@@ -172,6 +187,27 @@
     <section class="grid kpis" id="kpis"></section>
 
     <!-- LIMITES (LIS) -->
+    <section class="panel mov-card">
+      <div class="mov-head">
+        <div class="ptitle">Entradas e saídas · dia anterior</div>
+        <div id="mov-status"></div>
+      </div>
+      <details class="sync">
+        <summary>⚙ Configurar planilha MOV4</summary>
+        <div class="sync-box">
+          <input id="movId" spellcheck="false" placeholder="Link ou ID da planilha MOV4 do mês atual">
+          <div class="row"><button class="btn" id="movSaveBtn" style="box-shadow:none">Salvar</button></div>
+          <div class="hint">Essa planilha troca todo mês (ex: MOV4_09_2026 em setembro) — atualize o link aqui quando a nova sair. Cada aba dentro dela representa um dia (formato dd-mm); o painel busca sozinho a aba do dia anterior.</div>
+        </div>
+      </details>
+      <div class="mov-grid">
+        <div class="mov-box out"><div class="mov-label">Saídas</div><div class="mov-value" id="movOut">—</div></div>
+        <div class="mov-box in"><div class="mov-label">Entradas</div><div class="mov-value" id="movIn">—</div></div>
+        <div class="mov-box net"><div class="mov-label">Saldo do dia</div><div class="mov-value" id="movNet">—</div></div>
+      </div>
+      <div class="mov-day" id="movDayLabel"></div>
+    </section>
+
     <section class="panel limits">
       <div class="lim-head">
         <div class="ptitle">Limite de crédito utilizado (LIS)</div>
@@ -552,4 +588,82 @@ document.getElementById('syncSaveBtn').onclick=()=>{
 };
 // ao abrir a página, tenta ler a fonte online (se configurada) por cima do que já foi renderizado acima
 fetchOnline();
+
+// ─── MOV4: Entradas e Saídas do dia anterior ────────────────────────────────
+const MOV4_KEY='painelSaldosMov4Cfg';
+const DEFAULT_MOV4_ID='1bzmLzwWH7oEl04U_KxdCsl4pX8yyIQ976YL1lJw8_xM';
+function loadMov4Cfg(){try{const raw=localStorage.getItem(MOV4_KEY);if(raw)return JSON.parse(raw);}catch(e){}return{id:DEFAULT_MOV4_ID};}
+function saveMov4Cfg(cfg){try{localStorage.setItem(MOV4_KEY,JSON.stringify(cfg));}catch(e){}}
+function extractSheetId(input){
+  const s=(input||'').trim();
+  const m=s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if(m)return m[1];
+  if(/^[a-zA-Z0-9-_]{25,}$/.test(s))return s;
+  return '';
+}
+function mov4Status(kind,msg){
+  const el=document.getElementById('mov-status');
+  const cls=kind==='ok'?'ok':kind==='err'?'err':'wait';
+  el.innerHTML=`<span class="pill-status ${cls}">${msg}</span>`;
+}
+function movBRL(v){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:2}).format(v||0);}
+function mov4CellsToGrid(json){
+  const rows=(json&&json.table&&json.table.rows)||[];
+  return rows.map(r=>(r.c||[]).map(c=>c?(c.v!=null?c.v:''):''));
+}
+function fetchMov4Day(id,sheetName){
+  return new Promise((resolve,reject)=>{
+    const cb='__mov4_'+Math.random().toString(36).slice(2);
+    const url=`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?sheet=${encodeURIComponent(sheetName)}&tqx=out:json;responseHandler:${cb}&_=${Date.now()}`;
+    const s=document.createElement('script');let done=false;
+    const cleanup=()=>{try{delete window[cb];}catch(e){window[cb]=undefined;}s.remove();};
+    window[cb]=obj=>{done=true;cleanup();
+      if(!obj||!obj.table){reject(new Error('aba não encontrada'));return;}
+      resolve(mov4CellsToGrid(obj));};
+    s.onerror=()=>{if(!done){cleanup();reject(new Error('falha ao carregar'));}};
+    s.src=url;document.head.appendChild(s);
+    setTimeout(()=>{if(!done){cleanup();reject(new Error('tempo esgotado'));}},15000);
+  });
+}
+function sumCol(grid,colIdx,rowStart,rowEnd){
+  let s=0;
+  for(let r=rowStart;r<=rowEnd&&r<grid.length;r++){
+    const v=grid[r]&&grid[r][colIdx];
+    if(typeof v==='number')s+=v;
+    else if(typeof v==='string'){const n=parseFloat(v.replace(/[^\d,.-]/g,'').replace(',','.'));if(!isNaN(n))s+=n;}
+  }
+  return s;
+}
+async function renderMov4(){
+  const cfg=loadMov4Cfg();
+  const id=extractSheetId(cfg.id);
+  if(!id){mov4Status('wait','configure a planilha abaixo');document.getElementById('movDayLabel').textContent='';return;}
+  const yest=new Date();yest.setDate(yest.getDate()-1);
+  const dd=String(yest.getDate()).padStart(2,'0'),mm=String(yest.getMonth()+1).padStart(2,'0');
+  const sheetName=`${dd}-${mm}`;
+  mov4Status('wait','Lendo aba '+sheetName+'…');
+  try{
+    const grid=await fetchMov4Day(id,sheetName);
+    // colunas: I=índice 8, J=índice 9 (saídas) · L=índice 11, M=índice 12 (entradas) · linhas 16 a 24 (índice 15 a 23, 0-based)
+    const saidas=sumCol(grid,9,15,23);
+    const entradas=sumCol(grid,12,15,23);
+    document.getElementById('movOut').textContent=movBRL(saidas);
+    document.getElementById('movIn').textContent=movBRL(entradas);
+    document.getElementById('movNet').textContent=movBRL(entradas-saidas);
+    document.getElementById('movDayLabel').textContent=`Referente ao dia ${sheetName} (aba "${sheetName}")`;
+    mov4Status('ok','✓ atualizado');
+  }catch(err){
+    document.getElementById('movOut').textContent='—';
+    document.getElementById('movIn').textContent='—';
+    document.getElementById('movNet').textContent='—';
+    document.getElementById('movDayLabel').textContent='';
+    mov4Status('err','não encontrei a aba "'+sheetName+'" — confira o link/mês configurado');
+  }
+}
+document.getElementById('movId').value=loadMov4Cfg().id||'';
+document.getElementById('movSaveBtn').onclick=()=>{
+  saveMov4Cfg({id:document.getElementById('movId').value.trim()});
+  renderMov4();
+};
+renderMov4();
 </script>
