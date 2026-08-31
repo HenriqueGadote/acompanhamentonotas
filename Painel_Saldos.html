@@ -640,6 +640,24 @@ function sumCol(grid,colIdx,rowStart,rowEnd){
   }
   return s;
 }
+function normLabel(s){
+  return (s==null?'':s.toString()).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+}
+function sumByLabels(grid,labelColIdx,valueColIdx,labels){
+  const wanted=new Set(labels.map(normLabel));
+  let s=0;
+  for(let r=0;r<grid.length;r++){
+    const lab=normLabel(grid[r]&&grid[r][labelColIdx]);
+    if(!wanted.has(lab))continue;
+    const v=grid[r][valueColIdx];
+    if(typeof v==='number')s+=v;
+    else if(typeof v==='string'){const n=parseFloat(v.replace(/[^\d,.-]/g,'').replace(',','.'));if(!isNaN(n))s+=n;}
+  }
+  return s;
+}
+const MOV4_SAIDAS_LABELS=['Fornecedores','Salários','CHEQUE','Débito em c/c','Tarifas','Capatazia','Pamcard','LIS/Juros/Encargos/Emprestimos','bloqueio Judicial/aplicação'];
+const MOV4_ENTRADAS_LABELS=['Depósitos','Francesinha','Rendimento Automático','Capatazias','Resgate Aplic./Fundo','Venda Veículos','Mutuo Sócios','Outros'];
+const MOV4_ANTECIPACAO_LABELS=['Antecipação'];
 function yesterdayISO(){
   const y=new Date();y.setDate(y.getDate()-1);
   return `${y.getFullYear()}-${String(y.getMonth()+1).padStart(2,'0')}-${String(y.getDate()).padStart(2,'0')}`;
@@ -654,11 +672,11 @@ async function renderMov4(){
   mov4Status('wait','Lendo aba '+sheetName+'…');
   try{
     const grid=await fetchMov4Day(id,sheetName);
-    // colunas: I=índice 8, J=índice 9 (saídas) · L=índice 11, M=índice 12 (entradas)
-    // linhas 16 a 23 (índice 15 a 22, 0-based) somam normalmente; linha 24 (índice 23) = "Antecipação", fica separada e fora do total de Entradas
-    const saidas=sumCol(grid,9,15,23);
-    const entradas=sumCol(grid,12,15,22);
-    const antecipacao=sumCol(grid,12,23,23);
+    // coluna I (rótulo, índice 8) / J (valor, índice 9) = Pagtos·saídas · coluna L (rótulo, índice 11) / M (valor, índice 12) = Recebimentos·entradas
+    // busca por nome da linha, não por posição — mais resistente a dias com número de linhas diferente no topo da aba
+    const saidas=sumByLabels(grid,8,9,MOV4_SAIDAS_LABELS);
+    const entradas=sumByLabels(grid,11,12,MOV4_ENTRADAS_LABELS);
+    const antecipacao=sumByLabels(grid,11,12,MOV4_ANTECIPACAO_LABELS);
     document.getElementById('movOut').textContent=movBRL(saidas);
     document.getElementById('movIn').textContent=movBRL(entradas);
     document.getElementById('movAnt').textContent=movBRL(antecipacao);
