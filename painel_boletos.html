@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Boletos — TSA</title>
+<style>
+  :root{
+    --bg: #0F1420;
+    --panel: #161D2E;
+    --panel-2: #1C2536;
+    --line: #2A3448;
+    --text: #E8ECF4;
+    --text-dim: #8E99B3;
+    --accent: #4FD1A5;
+    --daycoval: #5B9BD5;
+    --itau: #F5A623;
+    --sofisa: #6FCF97;
+    --danger: #E8556B;
+    --warn: #F0B429;
+    --radius: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    padding:28px 32px 20px;
+    border-bottom:1px solid var(--line);
+    display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  }
+  header h1{
+    margin:0; font-size:22px; font-weight:600; letter-spacing:-0.01em;
+  }
+  header .updated{ color:var(--text-dim); font-size:13px; font-variant-numeric: tabular-nums; }
+
+  .summary{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr));
+    gap:12px; padding:20px 32px; border-bottom:1px solid var(--line);
+  }
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 18px;
+  }
+  .card .label{ font-size:12.5px; color:var(--text-dim); margin-bottom:6px; }
+  .card .value{ font-size:22px; font-weight:600; font-variant-numeric: tabular-nums; }
+  .card .sub{ font-size:12px; color:var(--text-dim); margin-top:4px; }
+  .card.total .value{ color:var(--accent); }
+
+  .tabs{
+    display:flex; gap:6px; padding:16px 32px 0; flex-wrap:wrap;
+  }
+  .tab{
+    padding:9px 16px; border-radius:8px 8px 0 0; cursor:pointer;
+    color:var(--text-dim); font-size:14px; font-weight:500;
+    border:1px solid transparent; border-bottom:none;
+    display:flex; align-items:center; gap:8px;
+  }
+  .tab .dot{ width:8px; height:8px; border-radius:50%; }
+  .tab.active{
+    background:var(--panel); color:var(--text); border-color:var(--line);
+  }
+
+  .toolbar{
+    background:var(--panel); border:1px solid var(--line); border-top:none;
+    margin:0 32px; padding:14px 16px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;
+  }
+  .toolbar input[type=text]{
+    flex:1; min-width:200px; background:var(--panel-2); border:1px solid var(--line);
+    border-radius:8px; color:var(--text); padding:9px 12px; font-size:14px;
+  }
+  .toolbar select{
+    background:var(--panel-2); border:1px solid var(--line); border-radius:8px;
+    color:var(--text); padding:9px 12px; font-size:14px;
+  }
+  .toolbar .count{ color:var(--text-dim); font-size:13px; white-space:nowrap; }
+
+  .table-wrap{
+    margin:0 32px 32px; border:1px solid var(--line); border-top:none;
+    background:var(--panel); border-radius:0 0 var(--radius) var(--radius);
+    overflow:auto; max-height:70vh;
+  }
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  thead th{
+    position:sticky; top:0; background:var(--panel-2); text-align:left;
+    padding:10px 14px; font-weight:600; color:var(--text-dim); font-size:12.5px;
+    border-bottom:1px solid var(--line); cursor:pointer; white-space:nowrap;
+  }
+  thead th:hover{ color:var(--text); }
+  tbody td{
+    padding:9px 14px; border-bottom:1px solid var(--line); white-space:nowrap;
+    color:var(--text);
+  }
+  tbody tr:hover{ background:var(--panel-2); }
+  .num{ text-align:right; font-variant-numeric: tabular-nums; }
+  .status-pill{
+    display:inline-block; padding:2px 9px; border-radius:20px; font-size:11.5px; font-weight:600;
+  }
+  .status-vencer{ background:rgba(79,209,165,.15); color:var(--accent); }
+  .status-vencido{ background:rgba(232,85,107,.15); color:var(--danger); }
+  .status-breve{ background:rgba(240,180,41,.15); color:var(--warn); }
+  .status-outro{ background:rgba(142,153,179,.15); color:var(--text-dim); }
+
+  .empty{ padding:40px; text-align:center; color:var(--text-dim); }
+  .loading{ padding:40px; text-align:center; color:var(--text-dim); }
+
+  footer{ padding:20px 32px 40px; color:var(--text-dim); font-size:12px; }
+
+  @media (max-width:720px){
+    header, .summary, .tabs, footer{ padding-left:16px; padding-right:16px; }
+    .toolbar, .table-wrap{ margin-left:16px; margin-right:16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Painel de Boletos — TSA</h1>
+  <div class="updated" id="updatedAt">carregando…</div>
+</header>
+
+<div class="summary" id="summary"></div>
+
+<div class="tabs" id="tabs"></div>
+<div class="toolbar">
+  <input type="text" id="search" placeholder="Buscar por sacado, número, filial…">
+  <select id="statusFilter">
+    <option value="">Todos os status</option>
+  </select>
+  <span class="count" id="rowCount"></span>
+</div>
+<div class="table-wrap">
+  <table id="dataTable">
+    <thead><tr id="headRow"></tr></thead>
+    <tbody id="bodyRows"></tbody>
+  </table>
+  <div class="loading" id="loadingMsg">Carregando dados da planilha…</div>
+</div>
+
+<footer>Dados lidos diretamente da planilha Google Sheets. Basta atualizar a planilha e recarregar esta página para ver os dados mais recentes.</footer>
+
+<script>
+/* =========================================================
+   CONFIGURAÇÃO — troque pelo ID da sua Google Sheets
+   (fica na URL: docs.google.com/spreadsheets/d/AQUI/edit)
+   ========================================================= */
+const SHEET_ID = "1y_l3kOngy5_zkkaoMrtwSzyRCcN91CGeNDscw99togA";
+
+// Definição de cada banco: nome da aba + colunas relevantes.
+// As "keys" abaixo já estão normalizadas (sem acento, minúsculas, espaços
+// únicos) porque os cabeçalhos da planilha vêm com pequenas variações de
+// espaçamento/maiúsculas — normalizar os dois lados evita esse tipo de bug.
+const BANKS = {
+  DAYCOVAL: {
+    color: "var(--daycoval)",
+    sheetName: "DAYCOVAL",
+    columns: [
+      { key: "filial", label: "Filial" },
+      { key: "seu numero", label: "Seu Número" },
+      { key: "nosso numero", label: "Nosso Número" },
+      { key: "cpf/cnpj", label: "CPF/CNPJ" },
+      { key: "sacado", label: "Sacado" },
+      { key: "nome do produto", label: "Produto" },
+      { key: "vencimento", label: "Vencimento", type: "date" },
+      { key: "valor", label: "Valor", type: "money" },
+      { key: "_situacao", label: "Situação", type: "situacao" }
+    ],
+    valueCol: "valor",
+    dateCol: "vencimento"
+  },
+  ITAU: {
+    color: "var(--itau)",
+    sheetName: "ITAU",
+    columns: [
+      { key: "filial", label: "Filial" },
+      { key: "carteira", label: "Carteira" },
+      { key: "pagador", label: "Pagador" },
+      { key: "cpf/cnpj pagador", label: "CPF/CNPJ" },
+      { key: "nosso numero", label: "Nosso Número" },
+      { key: "seu numero", label: "Seu Número" },
+      { key: "data vencimento", label: "Vencimento", type: "date" },
+      { key: "valor titulo (r$)", label: "Valor Título", type: "money" },
+      { key: "_situacao", label: "Situação", type: "situacao" }
+    ],
+    valueCol: "valor titulo (r$)",
+    dateCol: "data vencimento"
+  },
+  SOFISA: {
+    color: "var(--sofisa)",
+    sheetName: "SOFISA",
+    columns: [
+      { key: "filial", label: "Filial" },
+      { key: "nosso numero", label: "Nosso Número" },
+      { key: "numero da operacao", label: "Operação" },
+      { key: "nome do sacado", label: "Sacado" },
+      { key: "seu numero", label: "Seu Número" },
+      { key: "data de vencimento", label: "Vencimento", type: "date" },
+      { key: "valor do titulo", label: "Valor", type: "money" },
+      { key: "_situacao", label: "Situação", type: "situacao" }
+    ],
+    valueCol: "valor do titulo",
+    dateCol: "data de vencimento"
+  }
+};
+
+// Quantos dias contam como "vence em breve" (amarelo). Ajuste aqui se quiser.
+const DIAS_VENCE_EM_BREVE = 5;
+
+let currentBank = "DAYCOVAL";
+let cache = {};      // bank -> rows (array of objects)
+let allTotals = {};  // bank -> {count, sum, vencidos, breve}
+
+// Normaliza um cabeçalho: remove acento, colapsa espaços, minúsculas, sem
+// espaço nas pontas. Usado tanto nos cabeçalhos da planilha quanto nas
+// "keys" acima, pra casar mesmo com espaços extras/maiúsculas diferentes.
+function normHeader(s){
+  return (s || "").toString()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+// JSONP via <script>: não passa por CORS, então funciona mesmo dentro de um
+// iframe com origem "null" (como o data: URI usado no painel central).
+function jsonpGviz(sheetName){
+  return new Promise((resolve, reject) => {
+    const cb = "__gv" + Math.random().toString(36).slice(2);
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${encodeURIComponent(sheetName)}&headers=1&tqx=out:json;responseHandler:${cb}&_=${Date.now()}`;
+    const s = document.createElement("script");
+    let done = false;
+    const cleanup = () => { try { delete window[cb]; } catch(e) { window[cb] = undefined; } s.remove(); };
+    window[cb] = (obj) => { done = true; cleanup(); resolve(obj); };
+    s.onerror = () => { if (!done) { cleanup(); reject(new Error("script")); } };
+    s.src = url;
+    document.head.appendChild(s);
+    setTimeout(() => { if (!done) { cleanup(); reject(new Error("timeout")); } }, 15000);
+  });
+}
+
+function parseMoney(v){
+  if (typeof v === "number") return v;
+  if (!v) return 0;
+  const s = String(v).replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3},)/g, "").replace(",", ".");
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+function fmtMoney(n){
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+// Aceita "dd/mm/yyyy" (formato que o gviz devolve pra colunas de data) e
+// também objetos Date, caso o gviz não tenha formatado.
+function parseBRDate(v){
+  if (!v) return null;
+  if (v instanceof Date) return isNaN(v) ? null : v;
+  const m = String(v).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!m) return null;
+  const d = new Date(+m[3], +m[2] - 1, +m[1]);
+  return isNaN(d) ? null : d;
+}
+
+// Situação inteligente calculada a partir da data de vencimento: vencido,
+// vence em breve, ou a vencer. Não depende da coluna "Status" da planilha
+// (que em algumas abas vem sempre "a vencer", mesmo pra boleto vencido).
+function situacao(dateVal){
+  const venc = parseBRDate(dateVal);
+  if (!venc) return { label: "—", cls: "status-outro", key: "" };
+  const today = new Date(); today.setHours(0,0,0,0);
+  venc.setHours(0,0,0,0);
+  const diffDays = Math.round((venc - today) / 86400000);
+  if (diffDays < 0) return { label: `Vencido há ${-diffDays}d`, cls: "status-vencido", key: "vencido" };
+  if (diffDays <= DIAS_VENCE_EM_BREVE) {
+    const label = diffDays === 0 ? "Vence hoje" : `Vence em ${diffDays}d`;
+    return { label, cls: "status-breve", key: "breve" };
+  }
+  return { label: "A Vencer", cls: "status-vencer", key: "avencer" };
+}
+
+async function loadBank(bank){
+  if (cache[bank]) return cache[bank];
+  const conf = BANKS[bank];
+  const json = await jsonpGviz(conf.sheetName);
+  const cols = json.table.cols.map(c => normHeader(c.label));
+  const rows = json.table.rows.map(r => {
+    const obj = {};
+    cols.forEach((key, i) => {
+      const cell = r.c[i];
+      if (!cell) { obj[key] = ""; return; }
+      if (cell.f !== undefined && cell.f !== null && cell.f !== "") {
+        obj[key] = cell.f; // formatted value quando disponível (datas etc.)
+      } else {
+        obj[key] = cell.v;
+      }
+    });
+    return obj;
+  });
+  cache[bank] = rows;
+  return rows;
+}
+
+function renderTabs(){
+  const tabsEl = document.getElementById("tabs");
+  tabsEl.innerHTML = "";
+  Object.keys(BANKS).forEach(bank => {
+    const el = document.createElement("div");
+    el.className = "tab" + (bank === currentBank ? " active" : "");
+    el.innerHTML = `<span class="dot" style="background:${BANKS[bank].color}"></span>${bank}`;
+    el.onclick = () => { currentBank = bank; renderTabs(); renderTable(); };
+    tabsEl.appendChild(el);
+  });
+}
+
+function renderSummary(){
+  const summaryEl = document.getElementById("summary");
+  summaryEl.innerHTML = "";
+
+  let grandTotal = 0, grandCount = 0, grandVencidos = 0;
+  Object.keys(BANKS).forEach(bank => {
+    const t = allTotals[bank];
+    if (t) { grandTotal += t.sum; grandCount += t.count; grandVencidos += t.vencidos; }
+  });
+
+  const totalCard = document.createElement("div");
+  totalCard.className = "card total";
+  totalCard.innerHTML = `<div class="label">Total geral em aberto</div>
+    <div class="value">${fmtMoney(grandTotal)}</div>
+    <div class="sub">${grandCount} boletos, 3 bancos${grandVencidos ? ` · <span style="color:var(--danger)">${grandVencidos} vencido(s)</span>` : ""}</div>`;
+  summaryEl.appendChild(totalCard);
+
+  Object.keys(BANKS).forEach(bank => {
+    const t = allTotals[bank];
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `<div class="label" style="color:${BANKS[bank].color}">${bank}</div>
+      <div class="value">${t ? fmtMoney(t.sum) : "…"}</div>
+      <div class="sub">${t ? t.count + " boletos" + (t.vencidos ? ` · <span style="color:var(--danger)">${t.vencidos} vencido(s)</span>` : "") : "carregando"}</div>`;
+    summaryEl.appendChild(card);
+  });
+}
+
+function applyFilters(rows, conf){
+  const search = document.getElementById("search").value.trim().toLowerCase();
+  const statusFilter = document.getElementById("statusFilter").value;
+  return rows.filter(r => {
+    if (statusFilter && situacao(r[conf.dateCol]).key !== statusFilter) return false;
+    if (!search) return true;
+    return conf.columns.some(c => c.type !== "situacao" && String(r[c.key] || "").toLowerCase().includes(search));
+  });
+}
+
+function populateStatusFilter(){
+  const sel = document.getElementById("statusFilter");
+  const prev = sel.value;
+  sel.style.display = "";
+  sel.innerHTML = `
+    <option value="">Todas as situações</option>
+    <option value="vencido">Vencido</option>
+    <option value="breve">Vence em breve</option>
+    <option value="avencer">A Vencer</option>`;
+  if (["vencido","breve","avencer"].includes(prev)) sel.value = prev;
+}
+
+async function renderTable(){
+  const conf = BANKS[currentBank];
+  const loadingEl = document.getElementById("loadingMsg");
+  const headRow = document.getElementById("headRow");
+  const bodyRows = document.getElementById("bodyRows");
+  const rowCount = document.getElementById("rowCount");
+
+  loadingEl.style.display = "block";
+  bodyRows.innerHTML = "";
+  headRow.innerHTML = "";
+
+  let rows;
+  try {
+    rows = await loadBank(currentBank);
+  } catch (e) {
+    loadingEl.textContent = "Não foi possível carregar os dados. Confira se a planilha está compartilhada como 'Qualquer pessoa com o link'.";
+    return;
+  }
+
+  // compute totals once per bank
+  if (!allTotals[currentBank]) {
+    const sum = rows.reduce((acc, r) => acc + parseMoney(r[conf.valueCol]), 0);
+    const vencidos = rows.filter(r => situacao(r[conf.dateCol]).key === "vencido").length;
+    allTotals[currentBank] = { count: rows.length, sum, vencidos };
+    renderSummary();
+  }
+
+  populateStatusFilter();
+
+  conf.columns.forEach(c => {
+    const th = document.createElement("th");
+    th.textContent = c.label;
+    if (c.type === "money") th.style.textAlign = "right";
+    headRow.appendChild(th);
+  });
+
+  const filtered = applyFilters(rows, conf);
+  rowCount.textContent = `${filtered.length} de ${rows.length} boletos`;
+
+  if (filtered.length === 0) {
+    loadingEl.style.display = "none";
+    bodyRows.innerHTML = `<tr><td colspan="${conf.columns.length}"><div class="empty">Nenhum boleto encontrado com esse filtro.</div></td></tr>`;
+    return;
+  }
+
+  // ordena: vencidos primeiro, depois vence-em-breve, depois o resto por vencimento
+  const ORDER = { vencido: 0, breve: 1, avencer: 2, "": 3 };
+  filtered.sort((a, b) => {
+    const sa = situacao(a[conf.dateCol]), sb = situacao(b[conf.dateCol]);
+    if (ORDER[sa.key] !== ORDER[sb.key]) return ORDER[sa.key] - ORDER[sb.key];
+    const da = parseBRDate(a[conf.dateCol]), db = parseBRDate(b[conf.dateCol]);
+    if (da && db) return da - db;
+    return 0;
+  });
+
+  const frag = document.createDocumentFragment();
+  filtered.forEach(r => {
+    const tr = document.createElement("tr");
+    conf.columns.forEach(c => {
+      const td = document.createElement("td");
+      if (c.type === "situacao") {
+        const s = situacao(r[conf.dateCol]);
+        td.innerHTML = `<span class="status-pill ${s.cls}">${s.label}</span>`;
+      } else if (c.type === "money") {
+        td.className = "num";
+        td.textContent = fmtMoney(parseMoney(r[c.key]));
+      } else {
+        const val = r[c.key];
+        td.textContent = val === undefined || val === null || val === "" ? "—" : val;
+      }
+      tr.appendChild(td);
+    });
+    frag.appendChild(tr);
+  });
+  bodyRows.appendChild(frag);
+  loadingEl.style.display = "none";
+}
+
+async function preloadTotals(){
+  for (const bank of Object.keys(BANKS)) {
+    try {
+      const rows = await loadBank(bank);
+      const conf = BANKS[bank];
+      const sum = rows.reduce((acc, r) => acc + parseMoney(r[conf.valueCol]), 0);
+      const vencidos = rows.filter(r => situacao(r[conf.dateCol]).key === "vencido").length;
+      allTotals[bank] = { count: rows.length, sum, vencidos };
+    } catch (e) {
+      allTotals[bank] = null;
+    }
+  }
+  renderSummary();
+}
+
+document.getElementById("search").addEventListener("input", renderTable);
+document.getElementById("statusFilter").addEventListener("change", renderTable);
+
+renderTabs();
+renderSummary();
+preloadTotals();
+renderTable();
+document.getElementById("updatedAt").textContent = "Atualizado em " + new Date().toLocaleString("pt-BR");
+</script>
+
+</body>
+</html>
